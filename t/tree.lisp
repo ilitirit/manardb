@@ -15,4 +15,7 @@
     (stefil:is (not (eq (tree-general-val tree) gen-val)))
     (setf (tree-left tree) tree)
     (setf (tree-right (tree-left tree)) 'right)
-    (stefil:is (eq (tree-right tree) 'right))))
+    (stefil:is (eq (tree-right tree) 'right))
+    (setf (tree-left (tree-left tree)) nil)
+    tree))
+

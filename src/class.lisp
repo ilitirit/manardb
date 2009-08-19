@@ -1,7 +1,5 @@
 (in-package #:manardb)
 
-(defvar *metaclass-mmap-pathname-defaults* (parse-namestring "/tmp/"))
-
 (defmethod finalize-inheritance :after ((class mm-metaclass))
   (declare (ignore initargs))
   (setup-mtagmap-for-metaclass class)
@@ -21,7 +19,7 @@
 	    (let ((name (class-name class)))
 	      (concatenate 'string (clean (package-name (symbol-package name))) 
 			   "-" (clean (symbol-name name))))))
-   *metaclass-mmap-pathname-defaults*))
+   *mmap-pathname-defaults*))
 
 (defun-speedy mm-metaclass-alloc (class &optional (amount 1))
   (make-mptr (mm-metaclass-tag class) 
@@ -49,8 +47,8 @@
 	     (loop for m across *mtagmaps*
 		   for a from 0
 		   thereis 
-		   (when (and m (equalp (class-name class) (class-name (mtagmap-metaclass m))))
-		     (assert (= (mm-metaclass-len (mtagmap-metaclass m)) (mm-metaclass-len class)))
+		   (when (and m (equalp (class-name class) (class-name (mtagmap-class m))))
+		     (assert (= (mm-metaclass-len (mtagmap-class m)) (mm-metaclass-len class)))
 		     a))))
 	(setf tag (or existing
 		      (next-available-tag)))
@@ -59,15 +57,14 @@
 
     (unless (mtagmap tag)
       (setf (mtagmap tag)
-	    (make-mtagmap-from-file (mm-metaclass-filename class) 
-				 (* #x100000 (mm-metaclass-len class))))
+	    (make-mtagmap))
       (setf (mtagmap-layout (mtagmap tag)) (mm-metaclass-slot-layout class)))
 
     (assert-class-slot-layout class (mtagmap-layout (mtagmap tag)))
 
 
     (setf mtagmap (mtagmap tag) 
-	  (mtagmap-metaclass mtagmap) class
+	  (mtagmap-class mtagmap) class
 	  (mtagmap-object-instantiator mtagmap) (mm-metaclass-object-instantiator class)))
   
   class)

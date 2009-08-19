@@ -28,10 +28,10 @@
 (defun-speedy mtagmap-last-index (mtagmap)
   (mtagmap-next mtagmap))
 (defun-speedy mtagmap-elem-len (mtagmap)
-  (mm-metaclass-len (mtagmap-metaclass mtagmap)))
+  (mm-metaclass-len (mtagmap-class mtagmap)))
 
-
-(defun make-mtagmap-from-file (file &optional (min-bytes #x1000000))
+(defun mtagmap-open (mtagmap file &optional (min-bytes #x1000000))
+  (mtagmap-close mtagmap)
   (incf min-bytes +word-length+)
   (let ((pagesize (osicat-posix:getpagesize)))
     (setf min-bytes (* pagesize (ceiling min-bytes pagesize))))
@@ -52,18 +52,22 @@
 					fd
 					0)))
 	     (unwind-protect
-		  (let ((mtagmap (make-mtagmap :fd fd 
+		  (let ((new-mtagmap (make-mtagmap :fd fd 
 					 :ptr ptr
 					 :len bytes)))
-		    (when (zerop (mtagmap-next mtagmap))
-		      (setf (mtagmap-next mtagmap) +word-length+))
-		    (assert (>= (mtagmap-next mtagmap) (mtagmap-first-index mtagmap)))
-		    (setf fd nil ptr nil)
-		    mtagmap)
+		    (when (zerop (mtagmap-next new-mtagmap))
+		      (setf (mtagmap-next new-mtagmap) +word-length+))
+		    (assert (>= (mtagmap-next new-mtagmap) (mtagmap-first-index new-mtagmap)))
+		    (setf
+		     (mtagmap-fd mtagmap) fd
+		     (mtagmap-ptr mtagmap) ptr
+		     (mtagmap-len mtagmap) bytes
+		     fd nil ptr nil))
 	       (when ptr 
 		 (osicat-posix:munmap ptr bytes)))))
       (when fd 
-	(osicat-posix:close fd)))))
+	(osicat-posix:close fd))))
+  mtagmap)
 
 (defun-speedy mtagmap-alloc (mtagmap bytes)
   (declare (type mindex bytes))
@@ -110,8 +114,3 @@
 	(osicat-posix:close fd))))
   mtagmap)
 
-(defun close-all-mtagmaps ()
-  (loop for i below (length *mtagmaps*)
-	do 
-	(symbol-macrolet ((m (aref *mtagmaps* i))) 
-	  (when m (mtagmap-close m) (setf m nil)))))

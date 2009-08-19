@@ -1,5 +1,7 @@
 (in-package #:manardb)
 
+(defvar *mmap-pathname-defaults*)
+
 (deftype mptr ()
   `(unsigned-byte ,+mptr-bits+))
 
@@ -53,7 +55,7 @@
   (ptr (cffi:null-pointer) :type machine-pointer)
   (len 0 :type mindex)
 
-  metaclass
+  class
   layout
   object-instantiator)
 

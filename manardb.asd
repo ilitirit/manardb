@@ -14,7 +14,7 @@
 			 (:file "struct" :depends-on ("utils" "widths"))
 			 (:file "class" :depends-on ("mop" "mtagmap"))
 			 (:file "types" :depends-on ("class"))
-			 (:file "box" :depends-on ("basictypes"))
+			 (:file "box" :depends-on ("types"))
 			 (:file "finalize" :depends-on ("box"))
 			 (:file "iterator" :depends-on ("class"))
 			 ))
