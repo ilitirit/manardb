@@ -30,12 +30,43 @@
 (defun-speedy mtagmap-elem-len (mtagmap)
   (mm-metaclass-len (mtagmap-class mtagmap)))
 
-(defun mtagmap-open (mtagmap file &optional (min-bytes #x1000000))
-  (mtagmap-close mtagmap)
+(defun mtagmap-finalize (m)
+  (check-type (mtagmap-class m) mm-metaclass)
+
+  (setf (mtagmap-object-instantiator m) 
+	(mm-metaclass-object-instantiator (mtagmap-class m))
+
+	(slot-value (mtagmap-class m) 'mtagmap) m)
+  (check-type (mtagmap-object-instantiator m) function)
+  (mtagmap-check m))
+
+(defun mtagmap-check (m)
+  (cond ((mtagmap-closed-p m)
+	 (assert (cffi:null-pointer-p (mtagmap-ptr m)))
+	 (assert (zerop (mtagmap-len m))))
+	(t
+	 (assert (not (cffi:null-pointer-p (mtagmap-ptr m))))
+	 (assert (>= (mtagmap-next m) (mtagmap-first-index m)))
+	 (assert (>= (mtagmap-len m) (mtagmap-next m)))))
+
+  (let ((class (mtagmap-class m)))
+   (when class
+     (check-type class mm-metaclass)
+     (assert (layout-compatible-p (mtagmap-layout m) (mm-metaclass-slot-layout class)))
+     (assert (eq (mtagmap (mm-metaclass-tag class)) m))
+     (assert (eq (mm-metaclass-mtagmap class) m))))
+  m)
+
+(defun mtagmap-open (mtagmap 
+		     &key (file (mm-metaclass-filename (mtagmap-class mtagmap)))
+		     (min-bytes (* #x100 (mm-metaclass-len (mtagmap-class mtagmap))))
+		     (sharing *mmap-sharing*))
+  (assert (mtagmap-closed-p mtagmap))
   (incf min-bytes +word-length+)
   (let ((pagesize (osicat-posix:getpagesize)))
     (setf min-bytes (* pagesize (ceiling min-bytes pagesize))))
 
+  (mtagmap-finalize mtagmap)
   (let ((fd (osicat-posix:open file (logior osicat-posix:O-CREAT osicat-posix:O-RDWR))))
     (unwind-protect
 	 (let ((bytes (osicat-posix:stat-size (osicat-posix:fstat fd))))
@@ -45,10 +76,10 @@
 
 	   (assert (>= bytes +word-length+))
 	   
-	   (let ((ptr (osicat-posix:mmap 
+	   (let ((ptr (osicat-posix:mmap
 					(cffi:null-pointer) bytes
 					(logior osicat-posix:PROT-READ osicat-posix:PROT-WRITE)
-					osicat-posix:MAP-SHARED ;; XXX change this?
+					sharing
 					fd
 					0)))
 	     (unwind-protect
@@ -57,7 +88,7 @@
 					 :len bytes)))
 		    (when (zerop (mtagmap-next new-mtagmap))
 		      (setf (mtagmap-next new-mtagmap) +word-length+))
-		    (assert (>= (mtagmap-next new-mtagmap) (mtagmap-first-index new-mtagmap)))
+		    (mtagmap-check new-mtagmap)
 		    (setf
 		     (mtagmap-fd mtagmap) fd
 		     (mtagmap-ptr mtagmap) ptr
@@ -69,18 +100,31 @@
 	(osicat-posix:close fd))))
   mtagmap)
 
+(defun mtagmap-extend-alloc (mtagmap bytes)
+  (check-type bytes mindex)
+  (symbol-macrolet ((len (mtagmap-len mtagmap)))
+    (let ((next (mtagmap-next mtagmap)) (new-len (* 2 len)))
+      (assert (> len 0))
+      (assert (>= len next))
+      (check-type next mindex)
+      (mtagmap-check mtagmap)
+      (loop while (> (+ next bytes) new-len)
+	    do (setf new-len (* 2 new-len)))
+      (osicat-posix:ftruncate (mtagmap-fd mtagmap) new-len)
+      (setf (mtagmap-ptr mtagmap)
+	    (osicat-posix:mremap (mtagmap-ptr mtagmap) len new-len osicat-posix:MREMAP-MAYMOVE)
+	    len new-len)
+      (mtagmap-check mtagmap))))
+
 (defun-speedy mtagmap-alloc (mtagmap bytes)
   (declare (type mindex bytes))
   (symbol-macrolet ((len (mtagmap-len mtagmap)))
+    (when (zerop len)
+      (mtagmap-open mtagmap))
+
     (let ((next (mtagmap-next mtagmap)))
-      (loop while (> (+ next bytes) len)
-	    do
-	    (assert (>= len next))
-	    (let ((new-len (* 2 len)))
-	      (osicat-posix:ftruncate (mtagmap-fd mtagmap) new-len)
-	      (setf (mtagmap-ptr mtagmap)
-		    (osicat-posix:mremap (mtagmap-ptr mtagmap) len new-len osicat-posix:MREMAP-MAYMOVE)
-		    len new-len)))
+      (when (> (+ next bytes) len)
+	(mtagmap-extend-alloc mtagmap bytes))
       (incf (mtagmap-next mtagmap) bytes)
       next)))
 
@@ -96,6 +140,9 @@
 (defun mtagmap-check-write (mtagmap)
   (mtagmap-check-invert mtagmap)
   (mtagmap-check-invert mtagmap))
+
+(defun-speedy mtagmap-closed-p (mtagmap)
+  (= -1 (mtagmap-fd mtagmap)))
 
 (defun mtagmap-close (mtagmap)
   (check-type mtagmap mtagmap)

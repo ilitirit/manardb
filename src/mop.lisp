@@ -12,6 +12,7 @@
   (:documentation "Base class for all memory mapped objects."))
 
 (defun-speedy mm-object-pointer (mm-object)
+  (assert (not (zerop (%ptr mm-object))))
   (mptr-pointer (%ptr mm-object)))
 
 (defmethod shared-initialize :around ((class mm-metaclass)

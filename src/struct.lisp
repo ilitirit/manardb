@@ -1,6 +1,7 @@
 (in-package #:manardb)
 
 (defvar *mmap-pathname-defaults*)
+(defvar *mmap-sharing* osicat-posix:MAP-SHARED)
 
 (deftype mptr ()
   `(unsigned-byte ,+mptr-bits+))
@@ -83,6 +84,8 @@
 	thereis (unless (mtagmap i) i)))
 
 (defun-speedy mpointer (mtag mindex)
+  (declare (type mtag mtag) (type mindex mindex))
+  (assert (not (zerop mindex))) ;; XXX remove for faster code
   (cffi:inc-pointer (mtagmap-ptr (the mtagmap (mtagmap mtag))) mindex))
 
 (defun-speedy mptr-pointer (mptr)
@@ -115,3 +118,8 @@
 		 () "The tag for classname ~A has changed; compiled code may be invalid" ',classname))
        (symbol-macrolet ((,tagsym (,tag)))
 	 ,@body))))
+
+(defun-speedy mptr (obj)
+  (etypecase obj
+    (mm-object (%ptr obj))
+    (mptr obj)))

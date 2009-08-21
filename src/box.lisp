@@ -25,21 +25,23 @@
   (check-class-slot-layout mm-symbol)
 
   (defun-speedy box-symbol (object)
-   (declare (type symbol object))
-   (case object
-     ((nil) (make-mptr tag 0))
-     (t
-      (symbol-macrolet ((prop (prop-for-mm-symbol object)))
-	(or prop
-	    (let ((pkg (symbol-package object)))
-	      (setf prop (%ptr 
-			  (make-instance 'mm-symbol 
-					 :package 
-					 (if pkg
-					     (package-name pkg)
-					     nil)
+    (declare (type symbol object))
+    (cond ((not object)
+	   (make-mptr tag 0))
+	  (t
+	   (symbol-macrolet ((prop (prop-for-mm-symbol object)))
+	     (or prop
+		 (let* ((pkg (symbol-package object)) 
+		       (mptr (%ptr 
+			      (make-instance 'mm-symbol 
+					     :package 
+					     (if pkg
+						 (package-name pkg)
+						 nil)
 					 :symbol
-					 (symbol-name object))))))))))
+					 (symbol-name object)))))
+		   (assert (not (zerop mptr)))
+		   (setf prop mptr)))))))
 
  (defun-speedy unbox-symbol (index)
    (unless (zerop index)
@@ -50,7 +52,7 @@
 	 (let ((sym
 		(if package-name
 		    (intern symbol-name (find-package package-name))
-			    (make-symbol symbol-name))))
+		    (make-symbol symbol-name))))
 	   (setf (prop-for-mm-symbol sym) (make-mptr tag index))
 	   sym))))))
 

@@ -1,23 +1,24 @@
 (in-package #:manardb)
 
-(defun finalize-all-mtagmaps ()
+(defun finalize-all-mmaps ()
   (loop for m across *mtagmaps* 
 	when m
-	do (setf (mtagmap-object-instantiator m) 
-		 (mm-metaclass-object-instantiator (mtagmap-class m)))
-	(check-type (mtagmap-object-instantiator m) function)))
+	do (mtagmap-finalize m)))
 
-(defun close-all-mtagmaps ()
+(defun close-all-mmaps ()
+  (loop for package in (list-all-packages) do
+	(do-all-symbols (sym package)
+	  (remf (symbol-plist sym) 'mm-symbol)))
   (loop for m across *mtagmaps* do
 	(when m (mtagmap-close m))))
 
-(defun open-all-mtagmaps ()
-  (finalize-all-mtagmaps)
-  (loop for m across *mtagmaps*
-	when m do
-	(let ((class (mtagmap-class m)))
-	  (mtagmap-open m (mm-metaclass-filename class) 
-			(* #x100000 (mm-metaclass-len class))))))
+(defun open-all-mmaps ()
+  (finalize-all-mmaps)
+  (loop for m across *mtagmaps* do
+	(when m
+	  (when (mtagmap-closed-p m)
+	    (mtagmap-open m))
+	  (mtagmap-check m))))
 
 
 (define-lisp-object-to-mptr)

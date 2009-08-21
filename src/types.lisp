@@ -5,9 +5,12 @@
    (symbol-name :initarg :symbol))
   (object-instantiator unbox-symbol))
 
-(defmmclass mm-array ()
-  ((length :type mindex :initarg :length)
-   (base :type mptr :initarg :base))
+(defmmclass marray () ;; special arrays
+  ((length :type mindex :initarg :length :reader marray-length)
+   (base :type mptr :initarg :base :reader marray-base)))
+
+(defmmclass mm-array (marray) ;; stored lisp arrays
+  ()
   (object-instantiator unbox-array))
 
 (defmmclass mm-string (mm-array)
@@ -22,9 +25,6 @@
 (defmmclass mm-box ()
   ((ptr))
   (object-instantiator unbox-box))
-
-
-
 
 (eval-when (:compile-toplevel :load-toplevel)
   (defun specialized-class-array-boxer-name (classname)
@@ -71,11 +71,13 @@
 	  do (setf (aref array i) (funcall (the mm-object-instantiator instantiator) index)))
     array))
 
+(defgeneric lisp-object-to-mptr-impl (object))
+
 (eval-when (:compile-toplevel :load-toplevel)
   (defun generate-boxer (types)
     `(progn
        (defun-speedy box-object (object)
-	 (etypecase object
+	 (typecase object
 	   ,@(loop for (class . type) in types
 		   collect
 		   `(,type
@@ -89,7 +91,8 @@
 	   (array (locally
 		      (declare (notinline box-array))
 		    (box-array object)))
-	   (cons (box-cons object))))
+	   (cons (box-cons object))
+	   (t (lisp-object-to-mptr-impl object))))
 
        (defun-speedy unbox-array-internal (elem-tag elem-index len)
 	 (declare (type mtag elem-tag) (type mindex elem-index) (type mindex len))
@@ -126,24 +129,27 @@
 
 
 (defmacro define-box-array (array-boxer-name box-class lisp-type &key convertor (array-class 'mm-array))
-  `(with-constant-tag-for-class (element-tag ,box-class) 
-     (with-constant-tag-for-class (array-tag ,array-class)
-      (defun-speedy ,array-boxer-name (array)
-	(declare (type (simple-array ,lisp-type (*)) array))
-	(let* ((len (length array))
-	       (index (mtagmap-alloc (mtagmap element-tag) (* ,(mm-metaclass-len (find-class box-class)) len)))
-	       (pointer (mpointer element-tag index)))
-	  (loop for i below len do
-		(setf (d pointer i ,(if (stored-cffi-type lisp-type) lisp-type 'mptr)) 
-		      ,(if convertor
-			   `(,convertor (aref array i))
-			   `(aref array i))))
-	  (let ((barray (mtagmap-alloc (mtagmap array-tag) ,(mm-metaclass-len (find-class array-class)))))
-	    (with-pointer-slots (base length)
-		((mpointer array-tag barray) ,array-class)
-	      (setf base (make-mptr element-tag index)
-		    length len)
-	      (make-mptr array-tag barray))))))))
+  (let ((stored-type (if (stored-cffi-type lisp-type) lisp-type 'mptr)))
+   `(with-constant-tag-for-class (element-tag ,box-class) 
+      (with-constant-tag-for-class (array-tag ,array-class)
+	(defun-speedy ,array-boxer-name (array)
+	  (declare (type (simple-array ,lisp-type (*)) array))
+	  (let* ((len (length array))
+		 (index (mtagmap-alloc (mtagmap element-tag) (* ,(mm-metaclass-len (find-class box-class)) len)))
+		 (pointer (mpointer element-tag index))
+		 ,@(when convertor ;; have to to the conversion first as allocating can invalidate our pointers
+		       `((array (map '(array ,stored-type) #',convertor array))))
+		 )
+	    ,@(when convertor
+		    `((declare (type (simple-array ,stored-type (*)) array))))
+	    (loop for i below len do
+		  (setf (d pointer i ,stored-type) (aref array i)))
+	    (let ((barray (mtagmap-alloc (mtagmap array-tag) ,(mm-metaclass-len (find-class array-class)))))
+	      (with-pointer-slots (base length)
+		  ((mpointer array-tag barray) ,array-class)
+		(setf base (make-mptr element-tag index)
+		      length len)
+		(make-mptr array-tag barray)))))))))
 
 (define-box-array general-box-array mm-box t :convertor lisp-object-to-mptr)
 

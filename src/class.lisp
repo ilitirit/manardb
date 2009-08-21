@@ -1,7 +1,6 @@
 (in-package #:manardb)
 
 (defmethod finalize-inheritance :after ((class mm-metaclass))
-  (declare (ignore initargs))
   (setup-mtagmap-for-metaclass class)
   (loop for slot in (class-slots class) do
 	(when (slot-definition-memory-mapped slot)
@@ -21,7 +20,9 @@
 			   "-" (clean (symbol-name name))))))
    *mmap-pathname-defaults*))
 
+(declaim (ftype (function (mm-metaclass &optional mindex) mptr) mm-metaclass-alloc))
 (defun-speedy mm-metaclass-alloc (class &optional (amount 1))
+  (declare (type mindex amount))
   (make-mptr (mm-metaclass-tag class) 
 	     (mtagmap-alloc (mm-metaclass-mtagmap class) 
 			 (* amount (mm-metaclass-len class)))))
@@ -71,8 +72,23 @@
 
 (defmethod initialize-instance :before ((instance mm-object) &rest initargs)
   (declare (optimize speed) (dynamic-extent initargs))
-  (unless (eq '%ptr (first initargs))
-    (setf (%ptr instance) (mm-metaclass-alloc (class-of instance)))) 
+  (cond ((eq '%ptr (first initargs)) ;;; XXX this is for speed; if %ptr is given it must be first
+	 (setf (%ptr instance) 
+	       (second initargs)))
+	(t
+	 (let ((class (class-of instance)))
+	   (assert-class-slot-layout class (mm-metaclass-slot-layout class))
+	   (mtagmap-check (mm-metaclass-mtagmap class))
+	   (setf (%ptr instance) (mm-metaclass-alloc class))
+	   
+    ;;; XXX this is a horrible hack because we don't support unbound slots
+    ;;; not in shared-initialize because that is more likely to destroy the system's optimizations
+	   (let ((slot-definitions (class-slots class)))
+	     (loop for s in slot-definitions do
+		   (when (and (slot-definition-memory-mapped s)
+			      (slot-definition-initfunction s))
+		     (unless (get-properties initargs (slot-definition-initargs s))
+		       (setf (slot-value-using-class class instance s) (funcall (slot-definition-initfunction s))))))))))
   instance)
 
 (defun slot-definition-always-boundp (&rest args)
@@ -87,7 +103,8 @@
 	      (slot-definition-type slotd)
 	      'mm-box))
 	 (raw-access-form
-	  `(d (cffi:inc-pointer (mm-object-pointer object) ,offset) 0 
+	  `(d ,(if (zerop offset) `(mm-object-pointer object) 
+		   `(cffi:inc-pointer (mm-object-pointer object) ,offset)) 0 
 	      ,(if (eq type 'mm-box) 
 		   'mptr
 		   type)))
@@ -95,10 +112,6 @@
 	  (if (eq type 'mm-box)
 	      `(mptr-to-lisp-object ,raw-access-form)
 	      raw-access-form))
-	 (write-value-form
-	  (if (eq type 'mm-box)
-	      `(lisp-object-to-mptr new-val)
-	      'new-val))
 	 (declare-form
 	  `(declare (optimize speed))))
     (values
@@ -107,7 +120,9 @@
 	,read-form)
      `(lambda (new-val object)
 	,declare-form
-	(setf ,raw-access-form ,write-value-form)
+	(let ,(when (eq type 'mm-box)
+		    `((new-val (lisp-object-to-mptr new-val)))) ;; note that (lisp-object-to-mptr new-val) can invalidate the current pointer
+	  (setf ,raw-access-form new-val))
 	new-val))))
 
 (defun mm-effective-slot-definition-setup (slotd)
@@ -167,7 +182,11 @@
 
 (defun assert-class-slot-layout (class layout)
   (assert (layout-compatible-p layout (mm-metaclass-slot-layout class)) ()
-	   "Layout for class ~A has changed from ~A" class layout))
+	   "Layout for class ~A has changed from ~A" class layout)
+  (when (mm-metaclass-mtagmap class)
+    (assert (eq class (mtagmap-class (mm-metaclass-mtagmap class))))
+    (assert (eq (mtagmap (mm-metaclass-tag class)) (mm-metaclass-mtagmap class)))
+    (mtagmap-check (mm-metaclass-mtagmap class))))
 
 (defmacro check-class-slot-layout (classname &optional (layout (mm-metaclass-slot-layout (find-class classname))))
   `(assert-class-slot-layout (find-class ',classname) ',layout))

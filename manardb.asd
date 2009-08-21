@@ -1,7 +1,7 @@
 (cl:in-package #:cl-user)
 
 (asdf:defsystem manardb
-  :version "0.1.20090819"
+  :version "0.1.20090821"
   :licence "LLGPL"
   :components
   ((:module :src
@@ -14,14 +14,21 @@
 			 (:file "struct" :depends-on ("utils" "widths"))
 			 (:file "class" :depends-on ("mop" "mtagmap"))
 			 (:file "types" :depends-on ("class"))
+			 (:file "array" :depends-on ("types"))
 			 (:file "box" :depends-on ("types"))
 			 (:file "finalize" :depends-on ("box"))
 			 (:file "iterator" :depends-on ("class"))
-			 ))
-   (:module :t
+			 )))
+  :depends-on (alexandria osicat iterate closer-mop cl-irregsexp stefil))
+
+(asdf:defsystem manardb.test
+  :components
+  ((:module :t
 	    :components ((:file "suite") 
 			 (:file "class" :depends-on ("suite"))
+			 (:file "symbol" :depends-on ("suite"))
 			 (:file "box" :depends-on ("suite"))
 			 (:file "tree" :depends-on ("suite")))
 	    ))
-  :depends-on (alexandria osicat iterate closer-mop cl-irregsexp stefil))
+  :depends-on (manardb))
+

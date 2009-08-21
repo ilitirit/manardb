@@ -28,7 +28,7 @@
 
 (stefil:deftest box-numeric-array-test ()
   (loop for (limit type) in `((256 (unsigned-byte 8))
-			      (,(ash 1 9) (unsigned-byte 10))
+			      (,(ash 1 9) (unsigned-byte 64))
 			      (,(ash 1 31) (unsigned-byte 64))
 			      (,(ash 1 30) (signed-byte 64))
 			      (,most-positive-double-float double-float)
