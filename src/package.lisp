@@ -24,6 +24,11 @@
    #:in-marray
 
    #:gc
+
+   #:make-mm-fixed-string
+   #:mm-fixed-string-value
+
+   #:direct-slot-numeric-maref ;; XXXX to delete when we have time for something better
    )
   #+sbcl (:import-from #:sb-pcl #:reader-function #:writer-function)
   (:use #:iterate #:closer-common-lisp))

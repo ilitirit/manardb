@@ -19,6 +19,7 @@
 			 (:file "box" :depends-on ("types"))
 			 (:file "finalize" :depends-on ("box"))
 			 (:file "iterator" :depends-on ("class"))
+			 (:file "fixed-string" :depends-on ("box"))
 			 )))
   :depends-on (alexandria osicat iterate closer-mop cl-irregsexp stefil))
 

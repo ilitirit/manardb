@@ -87,3 +87,30 @@
 			     'default-walker)) mptr func)
       (loop for i from 1 below length do
 	    (funcall func (incf base step) 0)))))
+
+
+
+;;; XXXX these things are really awful and should be redone much more nicely
+(defmacro direct-slot-mptr (class object slot)
+  `(with-pointer-slots (,slot)
+       ((mm-object-pointer ,object) ,class)
+     ,slot))
+
+(defmacro set-direct-slot-mptr (class object slot new-value)
+  `(with-pointer-slots (,slot)
+       ((mm-object-pointer ,object) ,class)
+     (setf ,slot ,new-value)))
+
+(defsetf direct-slot-mptr set-direct-slot-mptr)
+
+(defmacro direct-slot-numeric-maref (class object slot element-type index)
+  `(with-pointer-slots (base)
+       ((mptr-pointer (direct-slot-mptr ,class ,object ,slot)) marray)
+     (d (mptr-pointer base) ,index ,element-type)))
+
+(defmacro set-direct-slot-numeric-maref (class object slot element-type index new-value )
+  `(with-pointer-slots (base)
+       ((mptr-pointer (direct-slot-mptr ,class ,object ,slot)) marray)
+     (setf (d (mptr-pointer base) ,index ,element-type) ,new-value)))
+
+(defsetf direct-slot-numeric-maref set-direct-slot-numeric-maref)
