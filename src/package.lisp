@@ -20,6 +20,10 @@
    #:make-marray
    #:marray-ref
    #:marray-length
+   #:index-of-marray
+   #:in-marray
+
+   #:gc
    )
   #+sbcl (:import-from #:sb-pcl #:reader-function #:writer-function)
   (:use #:iterate #:closer-common-lisp))

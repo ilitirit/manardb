@@ -23,4 +23,10 @@
       marray)))
 
 
-
+(defclause-sequence in-marray index-of-marray
+  :access-fn 'marray-ref
+  :size-fn 'marray-length
+  :sequence-type 'marray
+  :element-type t
+  :element-doc-string "Elements of an marray"
+  :index-doc-string "Indices of marray")

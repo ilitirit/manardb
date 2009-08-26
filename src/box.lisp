@@ -76,3 +76,14 @@
 
 (defun-speedy box-string (string)
   (internal-box-string (cl-irregsexp.bytestrings:force-simple-byte-vector string)))
+
+(defun-speedy walk-array (mptr func)
+  (with-pointer-slots (length base)
+    ((mptr-pointer mptr) mm-array)
+    (let ((step (ash (mtagmap-elem-len (mtagmap (mptr-tag base))) +mtag-bits+))
+	  (base base))
+      (funcall (the mm-walk-func 
+		 (slot-value (the mm-metaclass (mtagmap-class (mtagmap (mptr-tag mptr)))) 
+			     'default-walker)) mptr func)
+      (loop for i from 1 below length do
+	    (funcall func (incf base step) 0)))))

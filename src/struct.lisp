@@ -44,12 +44,18 @@
   (declare (type mtag tag) (type mindex index))
   (logior (ash index +mtag-bits+) tag))
 
-(deftype mm-object-instantiator ()
+(deftype mm-instantiator ()
   `(function (mindex) t)
  
-  ;; Allegro 8.1 has a horrible bug with function type specifiers and the
+  ;; Allegro 8.1 has a horrible bug with function type specifiers and `the'
   #+allegro `t
 )
+
+(deftype mm-walk-func ()
+  `(function (mptr mptr) t)
+  ;; Allegro 8.1 has a horrible bug with function type specifiers and `the'
+  #+allegro `t
+  )
 
 (defstruct mtagmap  
   (fd -1 :type fixnum)
@@ -58,7 +64,8 @@
 
   class
   layout
-  object-instantiator)
+  instantiator
+  walker)
 
 (deftype mtagmaps-array ()
   `(simple-array (or mtagmap null) (,+mtags+)))
@@ -76,8 +83,8 @@
   (check-type val (or null mtagmap))
   (setf (aref (the mtagmaps-array *mtagmaps*) mtag) val))
 
-(defmacro mm-object-instantiator-for-tag (mtag)
-  `(the mm-object-instantiator (mtagmap-object-instantiator (the mtagmap (mtagmap ,mtag)))))
+(defmacro mm-instantiator-for-tag (mtag)
+  `(the mm-instantiator (mtagmap-instantiator (the mtagmap (mtagmap ,mtag)))))
 
 (defun next-available-tag ()
   (loop for i from 0
@@ -92,7 +99,7 @@
   (mpointer (mptr-tag mptr) (mptr-index mptr)))
 
 (defun-speedy mptr-to-lisp-object (mptr)
-  (funcall (the mm-object-instantiator (mm-object-instantiator-for-tag (mptr-tag mptr))) 
+  (funcall (the mm-instantiator (mm-instantiator-for-tag (mptr-tag mptr))) 
 	   (mptr-index mptr)))
 
 (defmacro define-lisp-object-to-mptr ()

@@ -2,10 +2,34 @@
 
 (defmethod finalize-inheritance :after ((class mm-metaclass))
   (setup-mtagmap-for-metaclass class)
+  (setup-default-metaclass-functions class)
+  class)
+
+(defun setup-default-metaclass-functions (class)
+  (with-slots (default-walker default-instantiator)
+      class
+    (setf default-walker
+	  (let ((offsets (loop for slot in (class-slots class)
+			       when (and (slot-definition-memory-mapped slot) 
+					 (member (slot-definition-mm-type slot) '(mm-box mptr)))
+			       collect (slot-value slot 'offset))))
+	    (when offsets
+	      (compile nil
+		       `(lambda (mptr walker-func)
+			  (declare (type mm-walk-func walker-func))
+			  ,@(loop for offset in offsets collect
+				  `(let ((p (+ mptr ,(ash offset +mtag-bits+))))
+				     (funcall walker-func (d (mptr-pointer p) 0 mptr) p)))))))
+
+	  default-instantiator
+	  (compile nil
+		   `(lambda (index)
+		      (declare (optimize speed) (type mindex index))
+		      (make-instance ,class '%ptr (make-mptr ,(mm-metaclass-tag class) index))))))
+
   (loop for slot in (class-slots class) do
 	(when (slot-definition-memory-mapped slot)
-	  (mm-effective-slot-definition-setup slot)))
-  class)
+	  (mm-effective-slot-definition-setup slot))))
 
 (defun mm-metaclass-filename (class)
   (assert (class-name class) (class) "Cannot mmap anonymous classes.") ; is possible but not implemented or sensible(?)
@@ -27,15 +51,14 @@
 	     (mtagmap-alloc (mm-metaclass-mtagmap class) 
 			 (* amount (mm-metaclass-len class)))))
 
-(defun mm-metaclass-object-instantiator (class)
-  (typecase (slot-value class 'object-instantiator)
+(defun mm-metaclass-custom-function (class slot
+				      &optional
+				      (default-slot (let ((*package* #.*package*))
+						      (alexandria:symbolicate 'default- slot))))
+  (typecase (slot-value class slot)
     (null
-     (the mm-object-instantiator
-       (compile nil
-		`(lambda (index)
-		   (declare (optimize speed) (type mindex index))
-		   (make-instance ,class '%ptr (make-mptr ,(mm-metaclass-tag class) index))))))
-    (list (let ((f (first (slot-value class 'object-instantiator)))) 
+     (slot-value class default-slot))
+    (list (let ((f (first (slot-value class slot)))) 
 	    (or (ignore-errors (alexandria:ensure-function f)) f)))))
 
 (defun setup-mtagmap-for-metaclass (class)
@@ -63,10 +86,9 @@
 
     (assert-class-slot-layout class (mtagmap-layout (mtagmap tag)))
 
-
     (setf mtagmap (mtagmap tag) 
-	  (mtagmap-class mtagmap) class
-	  (mtagmap-object-instantiator mtagmap) (mm-metaclass-object-instantiator class)))
+	  (mtagmap-class mtagmap) class))
+
   
   class)
 
@@ -95,13 +117,16 @@
   (declare (ignore args))
   t)
 
+(defun slot-definition-mm-type (slotd)
+  (if (stored-cffi-type (slot-definition-type slotd))
+	      (slot-definition-type slotd)
+	      'mm-box))
+
 (defun mm-effective-slot-definition-lambda-forms (slotd)
   (let* (
 	 (offset (slot-value slotd 'offset))
 	 (type 
-	  (if (stored-cffi-type (slot-definition-type slotd))
-	      (slot-definition-type slotd)
-	      'mm-box))
+	  (slot-definition-mm-type slotd))
 	 (raw-access-form
 	  `(d ,(if (zerop offset) `(mm-object-pointer object) 
 		   `(cffi:inc-pointer (mm-object-pointer object) ,offset)) 0 

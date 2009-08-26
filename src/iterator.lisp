@@ -42,8 +42,5 @@
     ret))
 
 (defun count-all-instances (class)
-  (let ((ret 0))
-    (declare (type fixnum ret))
-    (dosubclasses (p class)
-      (incf ret))
-    ret))
+  (mtagmap-count (mm-metaclass-mtagmap class)))
+

@@ -20,6 +20,11 @@
 	    (mtagmap-open m))
 	  (mtagmap-check m))))
 
+(defun shrink-all-mmaps ()
+  "Truncate all mmaps to their current sizes"
+  (loop for m across *mtagmaps* do
+	(when (and m (not (mtagmap-closed-p m)))
+	  (mtagmap-shrink m))))
 
 (define-lisp-object-to-mptr)
 

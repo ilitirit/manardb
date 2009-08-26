@@ -22,6 +22,7 @@
 (defmacro mtagmap-next (mtagmap)
   `(mtagmap-word ,mtagmap 0))
 
+
 (defun-speedy mtagmap-first-index (mtagmap)
   (declare (ignore mtagmap))
   +word-length+)
@@ -29,15 +30,32 @@
   (mtagmap-next mtagmap))
 (defun-speedy mtagmap-elem-len (mtagmap)
   (mm-metaclass-len (mtagmap-class mtagmap)))
+(defun-speedy mtagmap-elem-pos (mtagmap index)
+  (/ (- index (mtagmap-first-index mtagmap)) (mtagmap-elem-len mtagmap)))
+(defun-speedy mtagmap-elem-pos-to-index (mtagmap pos)
+  (+ (mtagmap-first-index mtagmap) (* (mtagmap-elem-len mtagmap) pos)))
+
+(defun mtagmap-count (mtagmap)
+  (/ (- (mtagmap-last-index mtagmap) (mtagmap-first-index mtagmap))
+     (mtagmap-elem-len mtagmap)))
+
+(defun round-up-to-pagesize (bytes)
+  (let ((pagesize (osicat-posix:getpagesize)))
+    (* pagesize (max 1 (ceiling bytes pagesize)))))
 
 (defun mtagmap-finalize (m)
   (check-type (mtagmap-class m) mm-metaclass)
 
-  (setf (mtagmap-object-instantiator m) 
-	(mm-metaclass-object-instantiator (mtagmap-class m))
+  (setf (mtagmap-instantiator m) 
+	(mm-metaclass-custom-function (mtagmap-class m) 'instantiator)
+
+	(mtagmap-walker m)
+	(mm-metaclass-custom-function (mtagmap-class m) 'walker)
 
 	(slot-value (mtagmap-class m) 'mtagmap) m)
-  (check-type (mtagmap-object-instantiator m) function)
+
+  (check-type (mtagmap-instantiator m) function)
+  (check-type (mtagmap-walker m) (or null function))
   (mtagmap-check m))
 
 (defun mtagmap-check (m)
@@ -57,19 +75,25 @@
      (assert (eq (mm-metaclass-mtagmap class) m))))
   m)
 
+(defun fd-file-length (fd)
+  (osicat-posix:stat-size (osicat-posix:fstat fd)))
+
+(defun mtagmap-file-length (mtagmap)
+  (assert (not (mtagmap-closed-p mtagmap)))
+  (fd-file-length (mtagmap-fd mtagmap)))
+
 (defun mtagmap-open (mtagmap 
 		     &key (file (mm-metaclass-filename (mtagmap-class mtagmap)))
 		     (min-bytes (* #x100 (mm-metaclass-len (mtagmap-class mtagmap))))
 		     (sharing *mmap-sharing*))
   (assert (mtagmap-closed-p mtagmap))
   (incf min-bytes +word-length+)
-  (let ((pagesize (osicat-posix:getpagesize)))
-    (setf min-bytes (* pagesize (ceiling min-bytes pagesize))))
+  (setf min-bytes (round-up-to-pagesize min-bytes))
 
   (mtagmap-finalize mtagmap)
   (let ((fd (osicat-posix:open file (logior osicat-posix:O-CREAT osicat-posix:O-RDWR))))
     (unwind-protect
-	 (let ((bytes (osicat-posix:stat-size (osicat-posix:fstat fd))))
+	 (let ((bytes (fd-file-length fd)))
 	   (when (> min-bytes bytes)
 	     (osicat-posix:ftruncate fd min-bytes)
 	     (setf bytes min-bytes))
@@ -100,9 +124,33 @@
 	(osicat-posix:close fd))))
   mtagmap)
 
+(defun mtagmap-resize (mtagmap new-len)
+  (assert (not (mtagmap-closed-p mtagmap)))
+  (symbol-macrolet ((len (mtagmap-len mtagmap)))
+    (flet ((trunc ()
+	     (osicat-posix:ftruncate (mtagmap-fd mtagmap) new-len))
+	   (remap ()
+	     (setf (mtagmap-ptr mtagmap)
+		   (osicat-posix:mremap (mtagmap-ptr mtagmap) len new-len osicat-posix:MREMAP-MAYMOVE)
+		   len new-len)))
+      (let (done)
+	(unwind-protect
+	     (progn
+	       (cond ((> len new-len)
+		      (remap)
+		      (trunc))
+		     (t
+		      (trunc)
+		     (remap)))
+	       (setf done t))
+	  (unless done
+	    (mtagmap-close mtagmap))))))
+    
+  (mtagmap-check mtagmap))
+
 (defun mtagmap-extend-alloc (mtagmap bytes)
   (check-type bytes mindex)
-  (symbol-macrolet ((len (mtagmap-len mtagmap)))
+  (let ((len (mtagmap-len mtagmap)))
     (let ((next (mtagmap-next mtagmap)) (new-len (* 2 len)))
       (assert (> len 0))
       (assert (>= len next))
@@ -110,11 +158,7 @@
       (mtagmap-check mtagmap)
       (loop while (> (+ next bytes) new-len)
 	    do (setf new-len (* 2 new-len)))
-      (osicat-posix:ftruncate (mtagmap-fd mtagmap) new-len)
-      (setf (mtagmap-ptr mtagmap)
-	    (osicat-posix:mremap (mtagmap-ptr mtagmap) len new-len osicat-posix:MREMAP-MAYMOVE)
-	    len new-len)
-      (mtagmap-check mtagmap))))
+      (mtagmap-resize mtagmap new-len))))
 
 (defun-speedy mtagmap-alloc (mtagmap bytes)
   (declare (type mindex bytes))
@@ -161,3 +205,11 @@
 	(osicat-posix:close fd))))
   mtagmap)
 
+
+(defun mtagmap-shrink (mtagmap)
+  (assert (not (mtagmap-closed-p mtagmap)))
+  (mtagmap-check mtagmap)
+  (let ((bytes (round-up-to-pagesize (mtagmap-next mtagmap))) (file-len (mtagmap-file-length mtagmap)))
+    (unless (= bytes file-len)
+      (assert (> file-len bytes))
+      (mtagmap-resize mtagmap bytes))))

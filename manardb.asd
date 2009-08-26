@@ -15,6 +15,7 @@
 			 (:file "class" :depends-on ("mop" "mtagmap"))
 			 (:file "types" :depends-on ("class"))
 			 (:file "array" :depends-on ("types"))
+			 (:file "gc" :depends-on ("finalize"))
 			 (:file "box" :depends-on ("types"))
 			 (:file "finalize" :depends-on ("box"))
 			 (:file "iterator" :depends-on ("class"))

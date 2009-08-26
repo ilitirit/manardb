@@ -4,7 +4,10 @@
   ((mtagmap :accessor mm-metaclass-mtagmap :initform nil)
    (tag :reader mm-metaclass-tag :initform nil)
    (len :initform 0 :accessor mm-metaclass-len)
-   (object-instantiator :accessor mm-object-instantiator :initarg object-instantiator :initform nil))
+   (default-instantiator :initform nil)
+   (default-walker :initform nil)
+   (walker :initarg walker :initform nil)
+   (instantiator :accessor mm-instantiator :initarg instantiator :initform nil))
   (:documentation "Metaclass for memory mapped objects."))
 
 (defclass mm-object ()

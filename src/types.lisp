@@ -3,28 +3,31 @@
 (defmmclass mm-symbol ()
   ((package-name :initarg :package)
    (symbol-name :initarg :symbol))
-  (object-instantiator unbox-symbol))
+  (instantiator unbox-symbol))
 
 (defmmclass marray () ;; special arrays
   ((length :type mindex :initarg :length :reader marray-length)
-   (base :type mptr :initarg :base :reader marray-base)))
+   (base :type mptr :initarg :base :reader marray-base))
+  (walker walk-array))
 
 (defmmclass mm-array (marray) ;; stored lisp arrays
   ()
-  (object-instantiator unbox-array))
+  (instantiator unbox-array)
+  (walker walk-array))
 
 (defmmclass mm-string (mm-array)
   ()
-  (object-instantiator unbox-string))
+  (instantiator unbox-string)
+  (walker walk-array))
 
 (defmmclass mm-cons ()
   ((a :initarg :car)
    (b :initarg :cdr))
-  (object-instantiator unbox-cons))
+  (instantiator unbox-cons))
 
 (defmmclass mm-box ()
   ((ptr))
-  (object-instantiator unbox-box))
+  (instantiator unbox-box))
 
 (eval-when (:compile-toplevel :load-toplevel)
   (defun specialized-class-array-boxer-name (classname)
@@ -36,7 +39,7 @@
 	 (eval-when (:compile-toplevel :load-toplevel)
 	   (defmmclass ,name ()
 	       ((value :type ,type))
-	     (object-instantiator ,unboxer)))
+	     (instantiator ,unboxer)))
 	 (with-constant-tag-for-class (tag ,name)
 	   (defun-speedy ,unboxer (index)
 	     (d (mpointer tag index) 0 ,type)))
@@ -63,12 +66,12 @@
   (let* ((mtagmap (mtagmap elem-tag))
 	 (class (mtagmap-class mtagmap))
 	 (ilen (mm-metaclass-len class))
-	 (instantiator (mtagmap-object-instantiator mtagmap))
+	 (instantiator (mtagmap-instantiator mtagmap))
 	 (array (make-array len)))
-    (declare (type mm-object-instantiator instantiator))
+    (declare (type mm-instantiator instantiator))
     (loop for i below len
 	  for index from elem-index by ilen
-	  do (setf (aref array i) (funcall (the mm-object-instantiator instantiator) index)))
+	  do (setf (aref array i) (funcall (the mm-instantiator instantiator) index)))
     array))
 
 (defgeneric lisp-object-to-mptr-impl (object))
