@@ -22,7 +22,7 @@
 			 (:file "fixed-string" :depends-on ("box"))
 			 (:file "transaction" :depends-on ("finalize"))
 			 )))
-  :depends-on (alexandria osicat iterate closer-mop cl-irregsexp stefil))
+  :depends-on (alexandria osicat iterate closer-mop cl-irregsexp))
 
 (asdf:defsystem manardb.test
   :components
@@ -34,5 +34,5 @@
 			 (:file "box" :depends-on ("suite"))
 			 (:file "tree" :depends-on ("suite")))
 	    ))
-  :depends-on (manardb))
+  :depends-on (manardb stefil))
 
