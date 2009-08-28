@@ -1,9 +1,5 @@
 (in-package #:manardb)
 
-(defmmclass mm-fixed-string (mm-string)
-  ((cropped-length :type mindex :initform 0))
-  (walker walk-array))
-
 (defun mm-fixed-string-uncropper (string original-length)
   (declare (ignore original-length))
   (concatenate 'string string "..."))

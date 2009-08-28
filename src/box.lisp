@@ -21,6 +21,8 @@
 (defmacro prop-for-mm-symbol (sym)
   `(get ,sym 'mm-symbol))
 
+(defvar *stored-symbols* nil)
+
 (with-constant-tag-for-class (tag mm-symbol)
   (check-class-slot-layout mm-symbol)
 
@@ -41,7 +43,10 @@
 					 :symbol
 					 (symbol-name object)))))
 		   (assert (not (zerop mptr)))
-		   (setf prop mptr)))))))
+		   (when pkg 
+		     (push object *stored-symbols*)
+		     (setf prop mptr))
+		   mptr))))))
 
  (defun-speedy unbox-symbol (index)
    (unless (zerop index)
@@ -53,7 +58,10 @@
 		(if package-name
 		    (intern symbol-name (find-package package-name))
 		    (make-symbol symbol-name))))
-	   (setf (prop-for-mm-symbol sym) (make-mptr tag index))
+	   (unless (prop-for-mm-symbol sym)
+	     (push sym *stored-symbols*)
+	     (setf (prop-for-mm-symbol sym) 
+		   (make-mptr tag index)))
 	   sym))))))
 
 (defun-speedy tag-general-unbox-array (tag index)
@@ -82,9 +90,8 @@
     ((mptr-pointer mptr) mm-array)
     (let ((step (ash (mtagmap-elem-len (mtagmap (mptr-tag base))) +mtag-bits+))
 	  (base base))
-      (funcall (the mm-walk-func 
-		 (slot-value (the mm-metaclass (mtagmap-class (mtagmap (mptr-tag mptr)))) 
-			     'default-walker)) mptr func)
+      (funcall (slot-value (the mm-metaclass (mtagmap-class (mtagmap (mptr-tag mptr)))) 
+			   'default-walker) mptr func)
       (loop for i from 1 below length do
 	    (funcall func (incf base step) 0)))))
 
@@ -114,3 +121,8 @@
      (setf (d (mptr-pointer base) ,index ,element-type) ,new-value)))
 
 (defsetf direct-slot-numeric-maref set-direct-slot-numeric-maref)
+
+(defun-speedy meq (a b)
+  (or (eq a b) 
+      (and (typep a 'mm-object) (typep b 'mm-object)
+	   (= (%ptr a) (%ptr b)))))

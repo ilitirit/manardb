@@ -10,8 +10,7 @@
       class
     (setf default-walker
 	  (let ((offsets (loop for slot in (class-slots class)
-			       when (and (slot-definition-memory-mapped slot) 
-					 (member (slot-definition-mm-type slot) '(mm-box mptr)))
+			       when (slot-definition-mmap-pointer-p slot)
 			       collect (slot-value slot 'offset))))
 	    (when offsets
 	      (compile nil
@@ -35,13 +34,16 @@
   (assert (class-name class) (class) "Cannot mmap anonymous classes.") ; is possible but not implemented or sensible(?)
   (check-type (class-name class) symbol)
   
+  (make-pathname 
+   :name (flet ((clean (str)
+		  (remove-if-not #'alphanumericp str)))
+	   (let ((name (class-name class)))
+	     (concatenate 'string (clean (package-name (symbol-package name))) 
+			  "-" (clean (symbol-name name)))))))
+
+(defun mm-metaclass-pathname (class)
   (merge-pathnames 
-   (make-pathname 
-    :name (flet ((clean (str)
-		   (remove-if-not #'alphanumericp str)))
-	    (let ((name (class-name class)))
-	      (concatenate 'string (clean (package-name (symbol-package name))) 
-			   "-" (clean (symbol-name name))))))
+   (mm-metaclass-filename class)
    *mmap-pathname-defaults*))
 
 (declaim (ftype (function (mm-metaclass &optional mindex) mptr) mm-metaclass-alloc))
@@ -99,8 +101,6 @@
 	       (second initargs)))
 	(t
 	 (let ((class (class-of instance)))
-	   (assert-class-slot-layout class (mm-metaclass-slot-layout class))
-	   (mtagmap-check (mm-metaclass-mtagmap class))
 	   (setf (%ptr instance) (mm-metaclass-alloc class))
 	   
     ;;; XXX this is a horrible hack because we don't support unbound slots
@@ -110,7 +110,8 @@
 		   (when (and (slot-definition-memory-mapped s)
 			      (slot-definition-initfunction s))
 		     (unless (get-properties initargs (slot-definition-initargs s))
-		       (setf (slot-value-using-class class instance s) (funcall (slot-definition-initfunction s))))))))))
+		       (setf (slot-value-using-class class instance s) 
+			     (funcall (slot-definition-initfunction s))))))))))
   instance)
 
 (defun slot-definition-always-boundp (&rest args)
@@ -119,8 +120,8 @@
 
 (defun slot-definition-mm-type (slotd)
   (if (stored-cffi-type (slot-definition-type slotd))
-	      (slot-definition-type slotd)
-	      'mm-box))
+      (slot-definition-type slotd)
+      'mm-box))
 
 (defun mm-effective-slot-definition-lambda-forms (slotd)
   (let* (
@@ -195,8 +196,9 @@
 (defun mm-metaclass-slot-layout (class)
   (let ((slots (class-slots class)))
     (loop for s in slots 
-	  when (slot-exists-p s 'offset)
-	  collect `(,(slot-definition-name s) ,(slot-value s 'offset) ,(stored-type-size (slot-definition-type s))))))
+	  when (slot-definition-memory-mapped s)
+	  collect `(,(slot-definition-name s) ,(slot-value s 'offset) ,(stored-type-size (slot-definition-type s))
+		     ,@(when (slot-definition-mmap-pointer-p s) `(:mmap-pointer t))))))
 
 (defun layout-compatible-p (a b)
   (flet ((sort-layout (layout)
@@ -205,12 +207,13 @@
      (mapcar #'rest (sort-layout a)) 
      (mapcar #'rest (sort-layout b)))))
 
+
 (defun assert-class-slot-layout (class layout)
-  (assert (layout-compatible-p layout (mm-metaclass-slot-layout class)) ()
+  (cassert (layout-compatible-p layout (mm-metaclass-slot-layout class)) ()
 	   "Layout for class ~A has changed from ~A" class layout)
   (when (mm-metaclass-mtagmap class)
-    (assert (eq class (mtagmap-class (mm-metaclass-mtagmap class))))
-    (assert (eq (mtagmap (mm-metaclass-tag class)) (mm-metaclass-mtagmap class)))
+    (cassert (eq class (mtagmap-class (mm-metaclass-mtagmap class))))
+    (cassert (eq (mtagmap (mm-metaclass-tag class)) (mm-metaclass-mtagmap class)))
     (mtagmap-check (mm-metaclass-mtagmap class))))
 
 (defmacro check-class-slot-layout (classname &optional (layout (mm-metaclass-slot-layout (find-class classname))))
@@ -228,3 +231,22 @@
        (check-class-slot-layout ,name))
 
      (find-class ',name)))
+
+
+
+(defun tree-to-atoms-or-strings (tree)
+  (typecase tree
+    (integer tree)
+    (null tree)
+    (list
+     (loop for i in tree collect (tree-to-atoms-or-strings i)))
+    (t
+     (princ-to-string tree))))
+
+(defun mm-metaclass-schema (class)
+  (with-standard-io-syntax
+    (tree-to-atoms-or-strings
+     (list
+      (mm-metaclass-filename class)
+      (mm-metaclass-tag class)
+      (mm-metaclass-slot-layout class)))))

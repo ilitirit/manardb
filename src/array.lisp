@@ -7,8 +7,9 @@
 
 (defun-speedy (setf marray-ref) (new marray i) 
   (declare (type mindex i))
-  (setf (d (mptr-pointer (marray-base marray)) i mptr)
-	(lisp-object-to-mptr new))
+  (let ((new (lisp-object-to-mptr new)))
+    (setf (d (mptr-pointer (marray-base marray)) i mptr)
+	  new))
   new)
 
 (with-constant-tag-for-class (element-tag mm-box) 
@@ -18,8 +19,9 @@
 						 (mtagmap-alloc (mtagmap element-tag) 
 								(* length #.(stored-type-size 'mptr))))))
 	  (initial-element (lisp-object-to-mptr initial-element)))
-      (loop for i below length do
-	    (setf (d (mptr-pointer (marray-base marray)) i mptr) initial-element))
+      (let ((ptr (mptr-pointer (marray-base marray))))
+       (loop for i below length do
+	     (setf (d ptr i mptr) initial-element)))
       marray)))
 
 

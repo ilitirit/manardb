@@ -46,11 +46,17 @@
   (:method (slotd)
     (declare (ignorable slotd))))
 
+(defgeneric slot-definition-mmap-pointer-p (slotd)
+  (:method (slotd)
+    (declare (ignorable slotd))))
+
 (defclass mm-slot-definition (slot-definition)   
   ((persistent :initarg :persistent :reader slot-definition-memory-mapped :initform t)))
 
+
 (defclass mm-effective-slot-definition (mm-slot-definition standard-effective-slot-definition)
   ((offset :initarg :offset :reader mm-slot-definition-offset)
+   (mmap-pointer-p :initform nil :initarg :mmap-pointer-p :accessor slot-definition-mmap-pointer-p)
    (writer-function :accessor slot-definition-writer-function)
    (reader-function :accessor slot-definition-reader-function)))
 
@@ -65,8 +71,11 @@
   "Ordinary classes may NOT inherit from memory mapped classes."
   nil)
 
-(defmethod slot-definition-allocation ((slotd mm-effective-slot-definition))
-  'memory)
+(defmethod slot-definition-allocation ((slotd mm-slot-definition))
+  (if (slot-definition-memory-mapped slotd)
+      'memory
+      (call-next-method)))
+
 
 (defmethod direct-slot-definition-class ((class mm-metaclass) &rest initargs)
   (declare (ignore initargs))
@@ -87,18 +96,24 @@
 
 (defmethod compute-effective-slot-definition :around ((class mm-metaclass) name dslotds)
   (declare (ignorable name))
-  (let ((last-dslot (first (last (remove-if 'not dslotds)))))
-    (let ((*mop-hack-effective-slot-definition-class*
-	   (when (slot-definition-memory-mapped last-dslot) 
-	       (find-class 'mm-effective-slot-definition))))
-      (let ((eslot (call-next-method)))
-	(when (slot-definition-memory-mapped eslot)
-	  (let ((type (slot-definition-type eslot)))
-	   (with-slots (len)
-	       class
-	     (setf (slot-value eslot 'offset) len)
-	     (incf len (stored-type-size type)))))
-       eslot))))
+  (let ((dslotds (remove nil dslotds)))
+   (let ((last-dslot (first (last dslotds))))
+     (let ((*mop-hack-effective-slot-definition-class*
+	    (when (slot-definition-memory-mapped last-dslot) 
+	      (find-class 'mm-effective-slot-definition))))
+       (let ((eslot (call-next-method)))
+	 (when (slot-definition-memory-mapped eslot)
+	   (setf (slot-definition-mmap-pointer-p eslot) 
+		 (loop for dslot in dslotds
+		       always (or (eq 'mptr (slot-definition-type dslot))
+				  (eq 'mm-box (slot-definition-mm-type dslot)))))
+
+	   (let ((type (slot-definition-type eslot)))
+	     (with-slots (len)
+		 class
+	       (setf (slot-value eslot 'offset) len)
+	       (incf len (stored-type-size type)))))
+	 eslot)))))
 
 (defmethod slot-value-using-class ((class mm-metaclass) (object mm-object) (slotd mm-effective-slot-definition))
   (declare (ignorable class))

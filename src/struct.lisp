@@ -1,7 +1,10 @@
 (in-package #:manardb)
 
 (defvar *mmap-pathname-defaults*)
+(defvar *mmap-base-pathname*)
 (defvar *mmap-sharing* osicat-posix:MAP-SHARED)
+(defvar *mmap-protection* (logior osicat-posix:PROT-READ osicat-posix:PROT-WRITE))
+(defvar *mmap-may-allocate* t)
 
 (deftype mptr ()
   `(unsigned-byte ,+mptr-bits+))
@@ -104,9 +107,9 @@
 
 (defmacro define-lisp-object-to-mptr ()
   `(defun-speedy lisp-object-to-mptr (obj)
-     (typecase obj
-       (mm-object (%ptr obj))
-       (t (box-object obj)))))
+       (typecase obj
+	 (mm-object (%ptr obj))
+	 (t (box-object obj)))))
 
 (define-lisp-object-to-mptr) ;; should be redefined after box-object is
 			   ;; defined, which needs many types to be
@@ -115,16 +118,15 @@
 (defmacro with-constant-tag-for-class ((tagsym classname) &body body)
   (check-type tagsym symbol)
   (check-type classname symbol)
-  (alexandria:with-gensyms (tag)
-    `(macrolet ((,tag ()
-		  (let ((tag (mm-metaclass-tag (find-class ',classname))))
-		    (check-type tag mtag)
-		    tag)))
+  (let ((tag (mm-metaclass-tag (find-class classname))))
+    (check-type tag mtag)
+    
+    `(progn
        (eval-when (:load-toplevel :compile-toplevel :execute)
-	 (assert (= (,tag) ,(mm-metaclass-tag (find-class classname)))
+	 (assert (= ,tag ,(mm-metaclass-tag (find-class classname)))
 		 () "The tag for classname ~A has changed; compiled code may be invalid" ',classname))
-       (symbol-macrolet ((,tagsym (,tag)))
-	 ,@body))))
+	 (symbol-macrolet ((,tagsym ,tag))
+	   ,@body))))
 
 (defun-speedy mptr (obj)
   (etypecase obj

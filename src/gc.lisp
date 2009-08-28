@@ -1,24 +1,27 @@
 (in-package #:manardb)
 
 (defun gc-compact (offsets-table)
-    (loop for mtagmap across *mtagmaps*
-	  for offsets across offsets-table
-	  for tag from 0
-	  when offsets
-	  do
-	  (let ((elem-len (mtagmap-elem-len mtagmap)) (last-offset (mtagmap-first-index mtagmap)))
-	    (loop for offset across offsets
-		  for index from (mtagmap-first-index mtagmap) by elem-len
-		  do
-		  (unless (zerop offset)
-		    (assert (= last-offset offset))
-		    (osicat-posix:memmove (mpointer tag offset) (mpointer tag index) elem-len)
-		    (setf last-offset (+ offset elem-len))))
-	    (setf (mtagmap-next mtagmap) last-offset))))
+  (loop for mtagmap across *mtagmaps*
+	for offsets across offsets-table
+	for tag from 0
+	when offsets
+	do
+	(let ((elem-len (mtagmap-elem-len mtagmap)) (cur-offset (mtagmap-first-index mtagmap)))
+	  (loop for new-offset across offsets
+		for old-offset from (mtagmap-first-index mtagmap) by elem-len
+		do
+		(unless (zerop new-offset)
+		  (assert (= cur-offset new-offset))
+		  (assert (>= old-offset new-offset))
+		  (osicat-posix:memmove (mpointer tag new-offset) (mpointer tag old-offset) elem-len)
+		  (setf cur-offset (+ new-offset elem-len))))
+	  (setf (mtagmap-next mtagmap) cur-offset))))
 
 (defun gc-calc-new-offsets (mtagmap table)
   (when table
-    (let ((offsets (make-array (length table) :element-type 'mindex :initial-element 0)) (next (mtagmap-first-index mtagmap)) (elem-len (mtagmap-elem-len mtagmap)))
+    (let ((offsets (make-array (length table) :element-type 'mindex :initial-element 0)) 
+	  (next (mtagmap-first-index mtagmap)) 
+	  (elem-len (mtagmap-elem-len mtagmap)))
       (loop for refs across table
 	    for i from 0
 	    do (when refs
@@ -27,21 +30,30 @@
       offsets)))
 
 (defun gc-rewrite-pointers-and-compact (refs-table)
+  (clear-caches)
   (let ((offsets-table (map 'vector 'gc-calc-new-offsets *mtagmaps* refs-table)))
     (loop for mtagmap across *mtagmaps*
 	  for tag from 0
+	  for elem-len = (when mtagmap (mtagmap-elem-len mtagmap))
 	  for table across refs-table 
 	  for offsets across offsets-table
 	  when table
-	  do (loop for pos from 0
-		   for refs across table
-		   for new-location across offsets
-		   when refs
-		   do 
-		   (labels ((up (ref)
+	  do 
+	  (mtagmap-check mtagmap)
+	  (loop for pos from 0
+		for refs across table
+		for old-offset from (mtagmap-first-index mtagmap) by elem-len
+		for old-mptr = (make-mptr tag old-offset)
+		for new-offset across offsets
+		for new-mptr = (make-mptr tag new-offset)
+		when refs
+		do 
+		(labels ((up (ref)
 			      (declare (type mptr ref))
-			      (unless (zerop ref)
-				(setf (d (mptr-pointer ref) 0 mptr) (make-mptr tag new-location))))) ;;; XXX only write if necessary so that pages are not pointlessly dirtied
+			      (unless (zerop ref) 
+				(assert (= (d (mptr-pointer ref) 0 mptr) old-mptr))
+				(unless (= old-mptr new-mptr)
+				  (setf (d (mptr-pointer ref) 0 mptr) new-mptr))))) ;;; XXX only write if necessary so that pages are not pointlessly dirtied
 		      (typecase refs
 			(array
 			 (loop for r across refs do (up r)))
@@ -73,9 +85,9 @@
 			(t
 			 (cond ((zerop rref)
 				(setf ref referrer))
-			       ((eql rref referrer))
+			       ((= rref referrer))
 			       (t
-				(setf ref (make-array 2 :adjustable t :fill-pointer 0 
+				(setf ref (make-array 2 :adjustable t :fill-pointer 2
 						      :initial-contents (list rref referrer)
 						      :element-type 'mptr)))))))))
 		 (walk-ref (mptr &optional (referrer 0))

@@ -42,5 +42,10 @@
     ret))
 
 (defun count-all-instances (class)
-  (mtagmap-count (mm-metaclass-mtagmap class)))
+  (loop for c in (mm-subclasses (force-class class))
+	for m = (mm-metaclass-mtagmap c)
+	summing
+	(if (mtagmap-closed-p m)
+	    0
+	    (mtagmap-count m))))
 

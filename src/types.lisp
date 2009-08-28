@@ -129,8 +129,6 @@
 	    (general-box-array object)))))))
 
 
-
-
 (defmacro define-box-array (array-boxer-name box-class lisp-type &key convertor (array-class 'mm-array))
   (let ((stored-type (if (stored-cffi-type lisp-type) lisp-type 'mptr)))
    `(with-constant-tag-for-class (element-tag ,box-class) 
@@ -165,4 +163,7 @@
   (signed (signed-byte 64)))
 
 
+(defmmclass mm-fixed-string (mm-string)
+  ((cropped-length :type mindex :initform 0))
+  (walker walk-array))
 
