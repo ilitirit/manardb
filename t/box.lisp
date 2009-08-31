@@ -1,4 +1,4 @@
-(in-package #:manardb)
+(in-package #:manardb.test)
 
 (stefil:in-suite manardb-test)
 

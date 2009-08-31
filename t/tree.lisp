@@ -1,4 +1,4 @@
-(in-package #:manardb)
+(in-package #:manardb.test)
 
 (stefil:in-suite manardb-test)
 
@@ -9,7 +9,8 @@
       (general-val :initform 'gen-val :initarg :general-val :accessor tree-general-val)
       (left :type tree :initform nil :accessor tree-left)
       (right :type tree :initform nil :accessor tree-right)
-      (empty :initarg :another-slot :accessor tree-another-slot))))
+      (empty :initarg :another-slot :accessor tree-another-slot)
+      (parent :initarg :parent))))
   (stefil:is (find-class 'tree)))
 
 (stefil:deftest simple-tree-create-test (&optional (gen-val "This is a string"))
@@ -43,28 +44,31 @@
     tree))
 
 
-(stefil:deftest test-make-complex-tree (&optional (depth 6))
+(stefil:deftest test-make-complex-tree (&optional (depth 6) parent)
   (cond ((plusp depth)
 	 (let ((tree
-		(make-instance 'tree :numval depth :another-slot 
-			       (let ((m (make-marray depth)))
-				 (loop for i below depth 
-				       for last-tree = nil then tree
-				       for tree = (funcall 'test-make-complex-tree (1- depth))
-				 do 
-				       (when last-tree
-					 (setf (tree-right last-tree) tree))
-				       (setf (marray-ref m i) 
-					     tree))
-				 m))))
+		(make-instance 'tree :numval depth :parent parent)))
+	   (setf (slot-value tree 'empty)
+		 (let ((m (make-marray depth)))
+		   (loop for i below depth 
+			 for last-tree = nil then new-tree
+			 for new-tree = (funcall 'test-make-complex-tree (1- depth) tree)
+			 do 
+			 (when last-tree
+			   (setf (tree-right last-tree) new-tree))
+			 (setf (marray-ref m i) 
+			       new-tree))
+		   m))
 	   (test-consistency-of-complex-tree tree depth)
 	   tree))
 	(t
 	 'leaf)))
 
-(stefil:deftest test-consistency-of-complex-tree (tree &optional (depth (slot-value tree 'numval)))
+(stefil:deftest test-consistency-of-complex-tree (tree &optional (depth (slot-value tree 'numval)) (parent nil parent-given-p))
   (let ((marray (slot-value tree 'empty)))
     (stefil:is (= depth (slot-value tree 'numval)))
+    (when parent-given-p
+      (stefil:is (meq parent (slot-value tree 'parent))))
     (loop for i below depth
 	  for last-ref = nil then ref
 	  for ref = (marray-ref marray i)
@@ -75,4 +79,4 @@
 		  (when last-ref
 		    (stefil:is (not (meq ref (tree-right ref))))
 		    (stefil:is (meq ref (tree-right last-ref))))
-		  (funcall 'test-consistency-of-complex-tree ref (1- depth)))))))
+		  (funcall 'test-consistency-of-complex-tree ref (1- depth) tree))))))

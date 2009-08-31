@@ -1,3 +1,6 @@
-(in-package #:manardb)
+(defpackage #:manardb.test
+  (:use #:cl #:manardb #:stefil))
 
-(stefil:defsuite manardb-test)
+(in-package #:manardb.test)
+
+(defsuite manardb-test)

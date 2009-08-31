@@ -1,4 +1,4 @@
-(in-package #:manardb)
+(in-package #:manardb.test)
 
 (stefil:in-suite manardb-test)
 
@@ -11,8 +11,9 @@
 	do (stefil:is (eq keyword (mptr-to-lisp-object mptr)))
 	(stefil:is (= mptr (lisp-object-to-mptr keyword)))))
 
-(stefil:deftest store-all-symbols-test (&optional (packages (list (find-package '#:cl) 
-								  (find-package '#:manardb))))
+(stefil:deftest store-all-symbols-test (&optional 
+					(packages (list (find-package '#:cl) 
+							(find-package '#:manardb))))
   (macrolet ((do-all-syms ((var) &body body)
 	       (alexandria:with-gensyms (package)
 		 `(loop for ,package in packages do
