@@ -96,7 +96,7 @@
 
 (defun mtagmap-open (mtagmap 
 		     &key (file (mm-metaclass-pathname (mtagmap-class mtagmap)))
-		     (min-bytes (* #x100 (mm-metaclass-len (mtagmap-class mtagmap))))
+		     (min-bytes 0)
 		     (sharing *mmap-sharing*)
 		     (protection *mmap-protection*))
   (assert (mtagmap-closed-p mtagmap))

@@ -5,6 +5,7 @@
    #:mm-object
    #:defmmclass
    #:*mmap-base-pathname*
+   #:*mmap-may-allocate*
    #:close-all-mmaps
    #:open-all-mmaps
    #:doclass
