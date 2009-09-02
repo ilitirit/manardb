@@ -1,15 +1,16 @@
 (in-package #:manardb)
 
-(defun rewrite-gc-walk (root-objects-sequence new-mtagmaps)
+(defun rewrite-gc-walk (root-objects-sequence shared-tables new-mtagmaps)
   (declare (optimize speed))
   (macrolet ((vref (mptr)
 	       `(gethash (mptr-index ,mptr) 
 			 (aref (the simple-vector visited) (mptr-tag ,mptr)))))
     (iter 
       (for o in-sequence root-objects-sequence)
-      (let ((visited (map 'vector (lambda (x) (when x (make-hash-table :test 'eql))) new-mtagmaps)))
+      (let ((visited (map 'vector (lambda (x table) (or table (when x (make-hash-table :test 'eql)))) 
+			  new-mtagmaps shared-tables)))
 	(declare (dynamic-extent visited))
-	(labels ((walk-ref (mptr &optional (referrer 0))
+	(labels ((walk-ref (mptr referrer)
 		   (declare (type mptr mptr))
 		   (cond ((zerop mptr) 0)
 			 ((vref mptr))
@@ -33,10 +34,10 @@
 			      (when walker
 				(labels ((reset-ref (mptr referrer)
 					   (cond 
-					     ((zerop referrer) (walk-ref mptr))
+					     ((zerop referrer) (walk-ref mptr referrer))
 					     (t
 					      (let ((offset (- (mptr-index referrer) (mptr-index old-mptr)))
-						    (new-mptr (walk-ref mptr)))
+						    (new-mptr (walk-ref mptr referrer)))
 						(setf (d (cffi:inc-pointer (mtagmap-ptr mtagmap)
 									   (+ offset new-index)) 0 mptr)
 						      new-mptr))))))
@@ -44,7 +45,9 @@
 				  (funcall walker mptr #'reset-ref))))
 				    
 			    new-mptr)))))
-	  (walk-ref (force-mptr o)))))))
+	  (declare (dynamic-extent #'walk-ref))
+	  (let ((mptr (force-mptr o)))
+	    (walk-ref mptr mptr)))))))
 
 (defun rewrite-gc-cleanup (new-mtagmaps new-files)
   (loop for new across new-mtagmaps
@@ -58,7 +61,7 @@
 	   (osicat-posix:rename new-file old-file)
 	   (mtagmap-open old)))))
 
-(defun rewrite-gc (root-objects-sequence &key verbose)
+(defun rewrite-gc (root-objects-sequence &key verbose shared-classes (base-shared-classes '(mm-symbol mm-string mm-array marray mm-fixed-string)))
   (check-mmap-truncate-okay)
   (let* ((new-mtagmaps
 	 (map '(vector mtagmap) (lambda (m)
@@ -67,11 +70,19 @@
 			       (mtagmap-detach m)
 			       m)))
 	      *mtagmaps*))
+	 (shared-tables
+	  (make-array (length *mtagmaps*) :initial-element nil))
 	(new-files 
 	 (loop for m across new-mtagmaps
 	       collect 
 	       (when m 
 		 (make-pathname :type "rewrite" :defaults (mm-metaclass-pathname (mtagmap-class m)))))))
+    (flet ((add-shared (seq)
+	     (map nil (lambda (x)
+			(setf (aref shared-tables (force-tag x)) (make-hash-table :test 'eql))) seq)))
+      (add-shared base-shared-classes)
+      (add-shared shared-classes))
+    
     (unwind-protect
 	 (progn
 	   (loop for m across new-mtagmaps 
@@ -80,7 +91,7 @@
 		 (when m
 		   (ignore-errors (delete-file f))
 		   (mtagmap-open m :file f :finalize nil)))
-	   (rewrite-gc-walk root-objects-sequence new-mtagmaps)
+	   (rewrite-gc-walk root-objects-sequence shared-tables new-mtagmaps)
 	   (when verbose
 	     (loop for new across new-mtagmaps
 		   for old across *mtagmaps*
