@@ -27,8 +27,6 @@
   +word-length+)
 (defun-speedy mtagmap-last-index (mtagmap)
   (mtagmap-next mtagmap))
-(defun-speedy mtagmap-elem-len (mtagmap)
-  (mm-metaclass-len (mtagmap-class mtagmap)))
 (defun-speedy mtagmap-elem-pos (mtagmap index)
   (/ (- index (mtagmap-first-index mtagmap)) (mtagmap-elem-len mtagmap)))
 (defun-speedy mtagmap-elem-pos-to-index (mtagmap pos)
@@ -53,7 +51,9 @@
 	(mtagmap-walker m)
 	(mm-metaclass-custom-function (mtagmap-class m) 'walker)
 
-	(slot-value (mtagmap-class m) 'mtagmap) m)
+	(slot-value (mtagmap-class m) 'mtagmap) m
+
+	(mtagmap-elem-len m) (mm-metaclass-len (mtagmap-class m)))
 
   (check-type (mtagmap-instantiator m) function)
   (check-type (mtagmap-walker m) (or null function))

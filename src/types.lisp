@@ -65,7 +65,7 @@
   (declare (type mtag elem-tag) (type mindex elem-index) (type mindex len))
   (let* ((mtagmap (mtagmap elem-tag))
 	 (class (mtagmap-class mtagmap))
-	 (ilen (mm-metaclass-len class))
+	 (ilen (mtagmap-elem-len mtagmap))
 	 (instantiator (mtagmap-instantiator mtagmap))
 	 (array (make-array len)))
     (declare (type mm-instantiator instantiator))

@@ -38,6 +38,7 @@
   (declare (type mptr mptr) (optimize (safety 0)))
   (the mtag (logand mptr (1- (ash 1 +mtag-bits+))))) ; Allegro  8.1 is too stupid to optimize ldb
 
+(declaim (ftype (function (mptr) (mindex)) mptr-index))
 (defun-speedy mptr-index (mptr)
   (declare (type mptr mptr) (optimize (safety 0)))
   (the mindex (ash mptr (- +mtag-bits+))))
@@ -60,6 +61,8 @@
   #+allegro `t
   )
 
+(declaim (inline mtagmap-ptr mtagmap-len mtagmap-elem-len))
+
 (defstruct mtagmap  
   (fd -1 :type fixnum)
   (ptr (cffi:null-pointer) :type machine-pointer)
@@ -68,7 +71,8 @@
   class
   layout
   instantiator
-  walker)
+  walker
+  (elem-len 0 :type mindex))
 
 (deftype mtagmaps-array ()
   `(simple-array (or mtagmap null) (,+mtags+)))

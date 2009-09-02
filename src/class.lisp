@@ -74,7 +74,6 @@
 		   for a from 0
 		   thereis 
 		   (when (and m (equalp (class-name class) (class-name (mtagmap-class m))))
-		     (assert (= (mm-metaclass-len (mtagmap-class m)) (mm-metaclass-len class)))
 		     a))))
 	(setf tag (or existing
 		      (next-available-tag)))
