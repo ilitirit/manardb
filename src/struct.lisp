@@ -132,3 +132,17 @@
   (etypecase obj
     (mm-object (%ptr obj))
     (mptr obj)))
+
+
+(defun-speedy force-mptr (obj)
+  (etypecase obj
+    (mptr obj)
+    (mm-object (%ptr obj))))
+
+(defun-speedy force-tag (obj)
+  (etypecase obj
+    (mtag obj)
+    (mtagmap (mm-metaclass-tag (mtagmap-class obj)))
+    (mm-metaclass (mm-metaclass-tag obj))
+    (mm-object (mptr-tag (%ptr obj)))
+    (mptr (mptr-tag obj))))

@@ -76,8 +76,8 @@
    (when class
      (check-type class mm-metaclass)
      (assert (layout-compatible-p (mtagmap-layout m) (mm-metaclass-slot-layout class)))
-     (assert (eq (mtagmap (mm-metaclass-tag class)) m))
-     (assert (eq (mm-metaclass-mtagmap class) m))))
+     #-(and) (assert (eq (mtagmap (mm-metaclass-tag class)) m))
+     #-(and) (assert (eq (mm-metaclass-mtagmap class) m))))
   m)
 
 (defun fd-file-length (fd)
@@ -94,16 +94,21 @@
   (assert (not (zerop (logand osicat-posix:MAP-SHARED *mmap-sharing*))))
   (check-allocate-okay))
 
+(defun mtagmap-default-filename (mtagmap)
+  (mm-metaclass-pathname (mtagmap-class mtagmap)))
+
 (defun mtagmap-open (mtagmap 
-		     &key (file (mm-metaclass-pathname (mtagmap-class mtagmap)))
+		     &key (file (mtagmap-default-filename mtagmap))
 		     (min-bytes 0)
 		     (sharing *mmap-sharing*)
-		     (protection *mmap-protection*))
+		     (protection *mmap-protection*)
+		     (finalize t))
   (assert (mtagmap-closed-p mtagmap))
   (incf min-bytes +word-length+)
   (setf min-bytes (round-up-to-pagesize min-bytes))
 
-  (mtagmap-finalize mtagmap)
+  (when finalize
+    (mtagmap-finalize mtagmap))
   (let ((fd (osicat-posix:open file (logior osicat-posix:O-CREAT osicat-posix:O-RDWR))))
     (unwind-protect
 	 (let ((bytes (fd-file-length fd)))
@@ -210,9 +215,7 @@
 	(ptr (mtagmap-ptr mtagmap))
 	(len (mtagmap-len mtagmap)))
 
-    (setf (mtagmap-fd mtagmap) -1
-	  (mtagmap-len mtagmap) 0
-	  (mtagmap-ptr mtagmap) (cffi:null-pointer))
+    (mtagmap-detach mtagmap)
 
     (unwind-protect
 	 (unless (cffi:null-pointer-p ptr)
@@ -220,6 +223,11 @@
       (unless (minusp fd)
 	(osicat-posix:close fd))))
   mtagmap)
+
+(defun mtagmap-detach (mtagmap)
+  (setf (mtagmap-fd mtagmap) -1
+	(mtagmap-len mtagmap) 0
+	(mtagmap-ptr mtagmap) (cffi:null-pointer)))
 
 
 (defun mtagmap-shrink (mtagmap)

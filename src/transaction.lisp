@@ -197,4 +197,14 @@
 	      (error "Directory ~A does not exist" dir))
 	     ((nil)))))))
 
+(defun instantiate-default-mm-object (mptr)
+  (make-instance (mtagmap-class (mtagmap (mptr-tag mptr))) '%ptr mptr))
+
+(defmacro with-object-cache ((name &key (test ''equal)) &body body)
+  (alexandria:with-unique-names (cache string)
+    `(let ((,cache (make-hash-table :test ,test)))
+       (flet ((,name (,string)
+		(or (gethash ,string ,cache)
+		    (setf (gethash ,string ,cache) (instantiate-default-mm-object (lisp-object-to-mptr ,string))))))
+	 ,@body))))
 

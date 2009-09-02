@@ -1,25 +1,32 @@
 (in-package #:manardb)
 
 ;; XXX this can be made more efficient if class-specifier is known to be constant at expansion time
-(defmacro doclass ((var class-specifier &key fresh-instances) &body body)
-  (alexandria:with-unique-names (step tag class mtagmap mptr last-mptr)
-    `(let* ((,class (force-class ,class-specifier))
-	    (,tag (mm-metaclass-tag ,class))
-	    (,step (ash (mm-metaclass-len ,class) +mtag-bits+)))
-       (when ,tag ; if finalize-inheritance has not yet been called
-	 (let ((,mtagmap (mtagmap ,tag)))
-	   (when (not (mtagmap-closed-p ,mtagmap))
-	     (let* ((,last-mptr (make-mptr ,tag (mtagmap-last-index ,mtagmap)))
-		    (,mptr (make-mptr ,tag (mtagmap-first-index ,mtagmap))))
-	       ,(cond (fresh-instances
-			`(loop while (> ,last-mptr ,mptr)
-			       do (let ((,var (make-instance ,class '%ptr ,mptr))) ,@body)
-			       (incf ,mptr ,step)))
-		      (t
-		       `(let ((,var (make-instance ,class '%ptr ,mptr)))
-			  (loop while (> ,last-mptr ,mptr)
-				do (locally ,@body)
-				 (setf (%ptr ,var) (incf ,mptr ,step)))))))))))))
+(defmacro doclass ((var class-specifier &key fresh-instances reverse) &body body)
+  (alexandria:with-unique-names (step tag class mtagmap mptr last-mptr first-mptr)
+    (let ((body-form
+	   (if fresh-instances
+	       `(let ((,var (make-instance ,class '%ptr ,mptr))) ,@body)
+	       `(locally ,@body)))
+	  (incf-step (if reverse `decf `incf))
+	  (cmp (if reverse 
+		   `(>= ,mptr ,first-mptr)
+		   `(> ,last-mptr ,mptr))))
+     `(let* ((,class (force-class ,class-specifier))
+	     (,tag (mm-metaclass-tag ,class))
+	     (,step (ash (mm-metaclass-len ,class) +mtag-bits+)))
+	(declare (type mptr ,step))
+	(when ,tag   ; if finalize-inheritance has not yet been called
+	  (let ((,mtagmap (mtagmap ,tag)))
+	    (unless (mtagmap-closed-p ,mtagmap)
+	      (let* ((,last-mptr (make-mptr ,tag (mtagmap-last-index ,mtagmap)))
+		     (,first-mptr (make-mptr ,tag (mtagmap-first-index ,mtagmap)))
+		     (,mptr ,(if reverse `(- ,last-mptr ,step) `,first-mptr))
+		     ,@(unless fresh-instances `((,var (make-instance ,class '%ptr ,mptr)))))
+		(loop while ,cmp
+		      do ,body-form
+		      (,incf-step ,mptr ,step)
+		      ,@(unless fresh-instances
+				`((setf (%ptr ,var) ,mptr))))))))))))
 
 (defun mm-subclasses (class)
   (remove-duplicates

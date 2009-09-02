@@ -16,6 +16,7 @@
 			 (:file "types" :depends-on ("class"))
 			 (:file "array" :depends-on ("types"))
 			 (:file "gc" :depends-on ("finalize"))
+			 (:file "rewrite-gc" :depends-on ("gc"))
 			 (:file "box" :depends-on ("types"))
 			 (:file "finalize" :depends-on ("box"))
 			 (:file "iterator" :depends-on ("class"))

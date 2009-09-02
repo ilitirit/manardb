@@ -25,6 +25,7 @@
    #:in-marray
 
    #:gc
+   #:rewrite-gc
 
    #:make-mm-fixed-string
    #:mm-fixed-string-value
@@ -32,6 +33,8 @@
    #:with-transaction
    #:use-mmap-dir
    #:clean-mmap-dir
+
+   #:with-object-cache
 
    #:meq
    #:direct-slot-numeric-maref ;; XXXX to delete when we have time for something better

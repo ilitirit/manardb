@@ -61,7 +61,7 @@
 			 (up refs))))))
     (gc-compact offsets-table)))
 
-(defun gc (root-objects-sequence &key verbose (collect-and-compact t) (truncate t))
+(defun gc (root-objects-sequence &key verbose (collect-and-compact t))
   (declare (optimize speed))
   (let ((refs-table (map 'vector (lambda (m) 
 				   (unless (or (not m) (mtagmap-closed-p m))
@@ -98,8 +98,9 @@
 			(let ((walker (mtagmap-walker (mtagmap (mptr-tag mptr)))))
 			  (when walker
 			    (funcall walker mptr #'walk-ref))))))))
+	  (declare (dynamic-extent #'walk-ref #'add-ref))
 	  (iter (for o in-sequence root-objects-sequence)
-		(walk-ref o))
+		(walk-ref (force-mptr o)))
 	  (when verbose
 	    (loop for m across *mtagmaps*
 		  for table across refs-table
@@ -110,8 +111,7 @@
 			    (count-if-not #'not table)
 			    ))))
 	  (when collect-and-compact
-	    (gc-rewrite-pointers-and-compact refs-table))
-	  (when truncate
+	    (gc-rewrite-pointers-and-compact refs-table)
 	    (shrink-all-mmaps))
 	  (values)))))
 
