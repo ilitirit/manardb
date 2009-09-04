@@ -246,3 +246,16 @@
 (defun mtagmap-schema (mtagmap)
   (let ((class (mtagmap-class mtagmap)))
     (mm-metaclass-schema class)))
+
+
+(defmethod print-object ((m mtagmap) stream)
+  (print-unreadable-object (m stream :type t)
+    (unless (mtagmap-closed-p m)
+      (format stream "~A (~D): ~D objects, ~D bytes, ~D bytes mapped (~A)"
+	      (class-name (mtagmap-class m))
+	      (force-tag m)
+	      (mtagmap-count m)
+	      (mtagmap-next m)
+	      (mtagmap-len m)
+	      (mtagmap-default-filename m)))))
+

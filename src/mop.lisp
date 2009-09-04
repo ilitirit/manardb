@@ -18,9 +18,11 @@
 (defun-speedy ptr (object)
   (declare (type mm-object object))
   (the mptr (%ptr object)))
+(define-compiler-macro ptr (object)
+  `(the mptr (%ptr (the mm-object ,object))))
 
 (defun-speedy mm-object-pointer (mm-object)
-  (mptr-pointer (the mptr (ptr mm-object))))
+  (mptr-pointer (ptr mm-object)))
 
 (defmethod shared-initialize :around ((class mm-metaclass)
 				      slot-names

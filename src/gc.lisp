@@ -128,10 +128,3 @@ does not need so much memory.
 	    (shrink-all-mmaps))
 	  (values)))))
 
-(defun wipe-all ()
-  (clear-caches)
-  (loop for m across *mtagmaps*
-	when (and m (not (mtagmap-closed-p m)))
-	do
-	(setf (mtagmap-next m) (mtagmap-first-index m))
-	(mtagmap-shrink m)))

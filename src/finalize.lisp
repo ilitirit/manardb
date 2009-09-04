@@ -43,5 +43,20 @@
 	(when (and m (not (mtagmap-closed-p m)))
 	  (mtagmap-shrink m))))
 
+
+(defun wipe-all-mmaps ()
+  (clear-caches)
+  (loop for m across *mtagmaps*
+	when (and m (not (mtagmap-closed-p m)))
+	do
+	(setf (mtagmap-next m) (mtagmap-first-index m))
+	(mtagmap-shrink m)))
+
+(defun print-all-mmaps (&optional (stream *standard-output*))
+  (loop for m across *mtagmaps*
+	when (and m (not (mtagmap-closed-p m)))
+	do (format stream "~&~A~%" m)))
+
 (define-lisp-object-to-mptr)
+
 

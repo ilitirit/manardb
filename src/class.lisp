@@ -3,7 +3,7 @@
 (defmacro define-lisp-object-to-mptr ()
   `(defun-speedy lisp-object-to-mptr (obj)
        (typecase obj
-	 (mm-object (%ptr obj))
+	 (mm-object (ptr obj))
 	 (t (box-object obj)))))
 
 (define-lisp-object-to-mptr) ;; should be redefined after box-object is
@@ -28,7 +28,7 @@
 (defun-speedy force-mptr (obj)
   (etypecase obj
     (mptr obj)
-    (mm-object (%ptr obj))))
+    (mm-object (ptr obj))))
 		 
 (defun-speedy mptr (obj)
   (force-mptr obj))
@@ -39,7 +39,7 @@
     (mtagmap (mm-metaclass-tag (mtagmap-class obj)))
     (symbol (mm-metaclass-tag (find-class obj)))
     (mm-metaclass (mm-metaclass-tag obj))
-    (mm-object (mptr-tag (%ptr obj)))
+    (mm-object (mptr-tag (ptr obj)))
     (mptr (mptr-tag obj))))
 
 (defmethod finalize-inheritance :after ((class mm-metaclass))

@@ -6,9 +6,9 @@
 	((mpointer tag index) mm-box)
       (mptr-to-lisp-object ptr))))
 
-(defun box-cons (cons)
-  ;;; XXX this is terrible anyway so don't bother making it efficient
-  (%ptr (make-instance 'mm-cons :car (car cons) :cdr (cdr cons))))
+(defun-speedy box-cons (cons)
+  ;;; XXX this is a lost cause anyway so don't bother making it efficient?
+  (ptr (make-instance 'mm-cons :car (car cons) :cdr (cdr cons))))
 
 (with-constant-tag-for-class (tag mm-cons)
   (check-class-slot-layout mm-cons)
@@ -26,27 +26,33 @@
 (with-constant-tag-for-class (tag mm-symbol)
   (check-class-slot-layout mm-symbol)
 
+  (declaim (ftype (function (symbol) (mptr)) uncached-box-symbol box-symbol))
+  (defun uncached-box-symbol (object)
+    (declare (type symbol object)
+	     (optimize speed))
+    (let* 
+	((pkg (symbol-package object)) 
+	 (mptr (ptr 
+		(make-instance 'mm-symbol 
+			       :package 
+			       (if pkg
+				   (package-name pkg)
+				   nil)
+			       :symbol
+			       (symbol-name object)))))
+      (assert (not (zerop mptr)))
+      (when pkg 
+	(push object *stored-symbols*)
+	(setf (prop-for-mm-symbol object) mptr))
+      mptr))
+
   (defun-speedy box-symbol (object)
     (declare (type symbol object))
     (cond ((not object)
 	   (make-mptr tag 0))
 	  (t
-	   (symbol-macrolet ((prop (prop-for-mm-symbol object)))
-	     (or prop
-		 (let* ((pkg (symbol-package object)) 
-		       (mptr (%ptr 
-			      (make-instance 'mm-symbol 
-					     :package 
-					     (if pkg
-						 (package-name pkg)
-						 nil)
-					 :symbol
-					 (symbol-name object)))))
-		   (assert (not (zerop mptr)))
-		   (when pkg 
-		     (push object *stored-symbols*)
-		     (setf prop mptr))
-		   mptr))))))
+	   (or (prop-for-mm-symbol object)
+	       (uncached-box-symbol object)))))
 
  (defun-speedy unbox-symbol (index)
    (unless (zerop index)

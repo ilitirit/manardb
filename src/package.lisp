@@ -8,6 +8,8 @@
    #:*mmap-may-allocate*
    #:close-all-mmaps
    #:open-all-mmaps
+   #:wipe-all-mmaps
+   #:print-all-mmaps
    #:doclass
    #:dosubclasses
    #:retrieve-all-instances
@@ -26,7 +28,6 @@
 
    #:gc
    #:rewrite-gc
-   #:wipe-all
 
    #:make-mm-fixed-string
    #:mm-fixed-string-value
