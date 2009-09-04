@@ -2,64 +2,94 @@
 
 (defun rewrite-gc-walk (root-objects-sequence shared-tables new-mtagmaps &key progress)
   (declare (optimize speed))
-  (macrolet ((vref (mptr)
-	       `(gethash (mptr-index ,mptr) 
-			 (aref (the simple-vector visited) (mptr-tag ,mptr)))))
-    (let* ((print-step
-	    (when progress
-	      (ceiling (length root-objects-sequence) (if (numberp progress) progress 10))))
-	   (print-next print-step)
-	   (start-time (get-internal-real-time)))
+  (let* ((print-step
+	  (when progress
+	    (ceiling (length root-objects-sequence) (if (numberp progress) progress 10))))
+	 (print-next print-step)
+	 (start-time (get-internal-real-time))
+	 (root-objects-sequence (map '(vector mptr) #'force-mptr root-objects-sequence )))
+    
+    (iter 
+      (for o in-vector root-objects-sequence)
+      (for count from 0)
+      (when (and print-next (= count print-next))
+	(let ((now (get-internal-real-time)))
+	  (unless (= now start-time)
+	    (format t "~&Added ~D objects; ~$ object/s~%" count
+		    (/ (* count internal-time-units-per-second) (- now start-time)))))
+	(incf print-next print-step))
+	
+      (rewrite-gc-copy-one-root o shared-tables new-mtagmaps))))
 
-      (iter 
-	(for o in-sequence root-objects-sequence)
-	(for count from 0)
-	(when (and print-next (= count print-next))
-	  (format t "~&Added ~D objects; ~$ object/s~%" count
-		  (/ (* count internal-time-units-per-second) (- (get-internal-real-time) start-time)))
-	  (incf print-next print-step))
-      
-	(let ((visited (map 'vector (lambda (x table) (or table (when x (make-hash-table :test 'eql)))) 
-			    new-mtagmaps shared-tables)))
-	  (declare (dynamic-extent visited))
-	  (labels ((walk-ref (mptr referrer)
-		     (declare (type mptr mptr))
-		     (cond ((zerop mptr) 0)
-			   ((vref mptr))
-			   (t
-			    (let* ((tag (mptr-tag mptr)) 
-				   (mtagmap (aref new-mtagmaps tag))
-				   (len (mtagmap-elem-len mtagmap))
-				   (new-index (mtagmap-alloc mtagmap len))
-				   (new-mptr (make-mptr tag new-index))
-				   (old-mptr mptr))
+(defun rewrite-gc-copy-one-root (mptr shared-tables new-mtagmaps)
+  (let ((visited 
+	 (map 'vector 
+	      (lambda (x table) 
+		(or table 
+		    (when x (make-hash-table :test 'eql)))) 
+	      new-mtagmaps shared-tables)))
+    (declare (dynamic-extent visited))
+    (macrolet ((vref (mptr)
+		 `(gethash (mptr-index ,mptr) 
+			   (aref (the simple-vector visited) (mptr-tag ,mptr)))))
+    
+      (labels ((allocate-ref (mptr num)
+		 (declare (type mptr mptr)
+			  (type mindex num))
+		 (let* ((tag (mptr-tag mptr)) 
+			(mtagmap (aref new-mtagmaps tag))
+			(len (mtagmap-elem-len mtagmap))
+			(total-len (* num len))
+			(new-index (mtagmap-alloc mtagmap total-len))
+			(new-mptr (make-mptr tag new-index)))
+		 
+		   (osicat-posix:memcpy 
+		    (cffi:inc-pointer (mtagmap-ptr mtagmap)
+				      new-index)
+		    (mptr-pointer mptr)
+		    total-len)
+		   new-mptr))
+	       (walk-ref (mptr referrer num)
+		 (declare (ignore referrer))
+		 (cond ((zerop mptr) 0)
+		       ((vref mptr))
+		       (t
+			(let* ((new-mptr (allocate-ref mptr num))
+			       (mtagmap (mtagmap (mptr-tag mptr)))
+			       (walker (mtagmap-walker mtagmap)))
+			  (setf (vref mptr) new-mptr)
 
-			      (osicat-posix:memcpy 
-			       (cffi:inc-pointer (mtagmap-ptr mtagmap)
-						 new-index)
-			       (mptr-pointer mptr)
-			       len)
-				
-			      (unless (zerop referrer) ;; XXX slight hack to stop the hash-tables growing large by only looking at the first element of an array
-				(setf (vref old-mptr) new-mptr))
-			      (let ((walker (mtagmap-walker (mtagmap (mptr-tag mptr)))))
-				(when walker
-				  (labels ((reset-ref (mptr referrer)
-					     (cond 
-					       ((zerop referrer) (walk-ref mptr referrer))
-					       (t
-						(let ((offset (- (mptr-index referrer) (mptr-index old-mptr)))
-						      (new-mptr (walk-ref mptr referrer)))
-						  (setf (d (cffi:inc-pointer (mtagmap-ptr mtagmap)
-									     (+ offset new-index)) 0 mptr)
-							new-mptr))))))
-				    (declare (dynamic-extent #'reset-ref))
-				    (funcall walker mptr #'reset-ref))))
+			  (when walker
+			    (let ((old-index (mptr-index mptr)))
+			      (labels ((reset-ref (child-mptr referrer num)
+					 (declare (type mptr child-mptr referrer)
+						  (type mindex num))
+
+					 (let ((offset (- (mptr-index referrer) old-index))
+					       (new-child-mptr (walk-ref child-mptr referrer num)))
+
+					   (setf 
+					    (dw 
+					     (cffi:inc-pointer 
+					      (mtagmap-ptr 
+					       (aref new-mtagmaps (mptr-tag new-mptr)))
+					      (+ offset (mptr-index new-mptr))))
+					    new-child-mptr))))
+				(declare (dynamic-extent #'reset-ref))
+				(funcall walker mptr #'reset-ref)
+				(unless (= 1 num)
+				  (let* ((elem-len (mtagmap-elem-len mtagmap))
+					 (step (ash elem-len +mtag-bits+)))
+				    (loop for i from 1 below num do
+					  (incf mptr step)
+					  (incf new-mptr step)
+					  (incf old-index elem-len)
+					  (funcall walker mptr #'reset-ref))
+				    (decf new-mptr (* step (1- num))))))))
 				    
-			      new-mptr)))))
-	    (declare (dynamic-extent #'walk-ref))
-	    (let ((mptr (force-mptr o)))
-	      (walk-ref mptr mptr))))))))
+			  new-mptr)))))
+	(declare (dynamic-extent #'walk-ref))
+	(walk-ref mptr 0 1)))))
 
 (defun rewrite-gc-cleanup (new-mtagmaps new-files)
   (loop for new across new-mtagmaps
@@ -73,14 +103,24 @@
 	   (osicat-posix:rename new-file old-file)
 	   (mtagmap-open old)))))
 
-(defun rewrite-gc (root-objects-sequence &key progress verbose shared-classes (base-shared-classes '(mm-symbol mm-string mm-array marray mm-fixed-string)))
+(defun rewrite-gc (root-objects-sequence &key 
+		   progress verbose shared-classes 
+		   (base-shared-classes '(mm-symbol)))
+  "An alternative, sloppier GC algorithm with a space complexity that is not proportional to the size of the database.
+
+Creates a new database by copying each element of
+ROOT-OBJECTS-SEQUENCE as if it were entirely self contained except for
+any shared objects in SHARED-CLASSES.
+
+Cannot handle pointers to the inside of arrays at all."
   (check-mmap-truncate-okay)
   (let* ((new-mtagmaps
-	 (map '(vector mtagmap) (lambda (m)
-			   (when (and m (not (mtagmap-closed-p m)))
-			     (let ((m (copy-structure m)))
-			       (mtagmap-detach m)
-			       m)))
+	 (map '(vector (or null mtagmap)) 
+	      (lambda (m)
+		(when (and m (not (mtagmap-closed-p m)))
+		  (let ((m (copy-structure m)))
+		    (mtagmap-detach m)
+		    m)))
 	      *mtagmaps*))
 	 (shared-tables
 	  (make-array (length *mtagmaps*) :initial-element nil))
@@ -109,8 +149,13 @@
 		   for old across *mtagmaps*
 		   when new
 		   do 
-		   (format t "~A before ~D after ~D~&" 
-			   (mtagmap-class old) (mtagmap-count old) (mtagmap-count new))))
+		   (let ((cold (mtagmap-count old))
+			 (cnew (mtagmap-count new)))
+		     (cond ((zerop cold)
+			    (assert (zerop cnew)))
+			   (t
+			    (format t "~&~A before ~D after ~D; change ~D~%" 
+				    (mtagmap-class old) cold cnew (- cnew cold)))))))
 	   (rewrite-gc-cleanup new-mtagmaps new-files))
       (loop for m across new-mtagmaps 
 	    for f in new-files

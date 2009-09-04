@@ -16,7 +16,11 @@
   `(unsigned-byte ,+mindex-bits+))
 
 (deftype machine-pointer ()
-  (type-of (cffi:null-pointer)))
+  (type-of (cffi:null-pointer))
+  #+allegro 
+  (progn
+    `(unsigned-byte 32)
+    #+64bit `(unsigned-byte 64)))
 
 (defun stored-cffi-type (type)
   (let ((cffi-type 
@@ -33,6 +37,9 @@
 
 (defmacro d (machine-pointer &optional (index 0) (type '(unsigned-byte 8)))
   `(cffi:mem-aref ,machine-pointer ,(stored-cffi-type type) ,index))
+
+(defmacro dw (machine-pointer &optional (index 0))
+  `(d ,machine-pointer ,index mptr))
 
 (defun-speedy mptr-tag (mptr)
   (declare (type mptr mptr) (optimize (safety 0)))
@@ -56,7 +63,7 @@
 )
 
 (deftype mm-walk-func ()
-  `(function (mptr mptr) t)
+  `(function (mptr mptr mindex) t)
   ;; Allegro 8.1 has a horrible bug with function type specifiers and `the'
   #+allegro `t
   )
@@ -109,45 +116,3 @@
   (funcall (the mm-instantiator (mm-instantiator-for-tag (mptr-tag mptr))) 
 	   (mptr-index mptr)))
 
-(defmacro define-lisp-object-to-mptr ()
-  `(defun-speedy lisp-object-to-mptr (obj)
-       (typecase obj
-	 (mm-object (%ptr obj))
-	 (t (box-object obj)))))
-
-(define-lisp-object-to-mptr) ;; should be redefined after box-object is
-			   ;; defined, which needs many types to be
-			   ;; defined, in a circular fashion
-
-(defmacro with-constant-tag-for-class ((tagsym classname) &body body)
-  (check-type tagsym symbol)
-  (check-type classname symbol)
-  (let ((tag (mm-metaclass-tag (find-class classname))))
-    (check-type tag mtag)
-    
-    `(progn
-       (eval-when (:load-toplevel :compile-toplevel :execute)
-	 (assert (= ,tag ,(mm-metaclass-tag (find-class classname)))
-		 () "The tag for classname ~A has changed; compiled code may be invalid" ',classname))
-	 (symbol-macrolet ((,tagsym ,tag))
-	   ,@body))))
-
-(defun-speedy mptr (obj)
-  (etypecase obj
-    (mm-object (%ptr obj))
-    (mptr obj)))
-
-
-(defun-speedy force-mptr (obj)
-  (etypecase obj
-    (mptr obj)
-    (mm-object (%ptr obj))))
-
-(defun-speedy force-tag (obj)
-  (etypecase obj
-    (mtag obj)
-    (mtagmap (mm-metaclass-tag (mtagmap-class obj)))
-    (symbol (mm-metaclass-tag (find-class obj)))
-    (mm-metaclass (mm-metaclass-tag obj))
-    (mm-object (mptr-tag (%ptr obj)))
-    (mptr (mptr-tag obj))))

@@ -138,7 +138,7 @@
 		 (index (mtagmap-alloc (mtagmap element-tag) (* ,(mm-metaclass-len (find-class box-class)) len)))
 		 (pointer (mpointer element-tag index))
 		 ,@(when convertor ;; have to to the conversion first as allocating can invalidate our pointers
-		       `((array (map '(array ,stored-type) #',convertor array))))
+		       `((array (map '(vector ,stored-type) #',convertor array))))
 		 )
 	    ,@(when convertor
 		    `((declare (type (simple-array ,stored-type (*)) array))))

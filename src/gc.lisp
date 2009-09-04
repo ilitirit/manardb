@@ -62,12 +62,21 @@
     (gc-compact offsets-table)))
 
 (defun gc (root-objects-sequence &key verbose (collect-and-compact t))
+  "Do a full and precise garbage collection over all objects in the memory mapped system. 
+If COLLECT-AND-COMPACT is true, then unused objeccts are removed.
+
+Uses at least 16 bytes of Lisp memory per object and more if objects
+are densely referenced. See REWRITE-GC for a sloppier alternative that
+does not need so much memory.
+"
+
   (declare (optimize speed))
   (let ((refs-table (map 'vector (lambda (m) 
 				   (unless (or (not m) (mtagmap-closed-p m))
 				     ;;; also tried with a hash-table but in comparison it is very very slow on Allegro
 				     (make-array (mtagmap-count m) :initial-element nil))) 
-			 *mtagmaps*)))
+			 *mtagmaps*))
+	(root-objects-sequence (map '(vector mptr) #'force-mptr root-objects-sequence )))
     (macrolet ((r (mptr)
 		 (check-type mptr symbol)
 		 `(aref (aref refs-table (mptr-tag ,mptr)) (mtagmap-elem-pos (mtagmap (mptr-tag ,mptr)) (mptr-index ,mptr)) )
@@ -87,20 +96,24 @@
 				(setf ref referrer))
 			       ((= rref referrer))
 			       (t
-				(setf ref (make-array 2 :adjustable t :fill-pointer 2
-						      :initial-contents (list rref referrer)
-						      :element-type 'mptr)))))))))
-		 (walk-ref (mptr &optional (referrer 0))
+				(setf ref 
+				      (make-array 2 :adjustable t :fill-pointer 2
+						  :initial-contents (list rref referrer)
+						  :element-type 'mptr)))))))))
+		 (walk-ref (mptr referrer len)
 		   (unless (zerop mptr)
 		     (let ((first-time (not (r mptr))))
 		      (add-ref mptr referrer)
 		      (when first-time
 			(let ((walker (mtagmap-walker (mtagmap (mptr-tag mptr)))))
 			  (when walker
-			    (funcall walker mptr #'walk-ref))))))))
+			    (funcall walker mptr #'walk-ref))))
+		      (unless (= 1 len)
+			(walk-ref (+ mptr (ash (mtagmap-elem-len 
+						(mtagmap (mptr-tag mptr))) +mtag-bits+)) 0 (1- len)))))))
 	  (declare (dynamic-extent #'walk-ref #'add-ref))
-	  (iter (for o in-sequence root-objects-sequence)
-		(walk-ref (force-mptr o)))
+	  (iter (for o in-vector root-objects-sequence)
+		(walk-ref o 0 1))
 	  (when verbose
 	    (loop for m across *mtagmaps*
 		  for table across refs-table
@@ -115,3 +128,10 @@
 	    (shrink-all-mmaps))
 	  (values)))))
 
+(defun wipe-all ()
+  (clear-caches)
+  (loop for m across *mtagmaps*
+	when (and m (not (mtagmap-closed-p m)))
+	do
+	(setf (mtagmap-next m) (mtagmap-first-index m))
+	(mtagmap-shrink m)))

@@ -19,4 +19,4 @@
 (defmacro cassert (test-form &optional places string &rest args)
   (declare (ignore places));; XXX
   `(unless ,test-form
-     (cerror "Ignore the assertion" ,string ,@args)))
+     (cerror "Ignore the assertion" ,(or string (format nil "Assertion ~S failed" test-form)) ,@args)))

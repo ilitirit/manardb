@@ -12,7 +12,7 @@
 
 (stefil:deftest unbox-nil-test ()
   (stefil:is (eq nil (mptr-to-lisp-object 0)))
-  (stefil:is (= 0 (box-object nil))))
+  (stefil:is (= 0 (lisp-object-to-mptr nil))))
 
 (stefil:deftest box-cons-test ()
   (loop repeat 10

@@ -3,7 +3,7 @@
 (stefil:in-suite manardb-test)
 
 (stefil:deftest symbol-tag-is-zero-test ()
-  (stefil:is (= (mm-metaclass-tag (find-class 'mm-symbol)) 0)))
+  (stefil:is (= (manardb::mm-metaclass-tag (find-class 'manardb::mm-symbol)) 0)))
 
 (stefil:deftest store-keyword-test ()
   (loop for keyword in '(:keyword :key :errorp)

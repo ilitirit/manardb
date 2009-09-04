@@ -156,18 +156,20 @@
 	    (let ((*mmap-pathname-defaults* tmpdir))
 	      (check-schema)
 	      (open-all-mmaps)
-	      (funcall body)
-	      (let ((version (dir-version tmpdir)))
-		(setf (dir-version tmpdir) (build-version (1+ (first version))))
-
-		(handler-case 
-		    (progn
-		      (replace-all-mmaps tmpdir (maindir) version)
-		      (setf tmpdir nil))
-		  (error (err)
-		    (warn "Restarting manardb transaction ~A: ~A" message err)
-		    (funcall on-restart)
-		    (go restart))))))
+	      (return-from transact
+		(multiple-value-prog1
+		    (funcall body)
+		  (let ((version (dir-version tmpdir)))
+		    (setf (dir-version tmpdir) (build-version (1+ (first version))))
+		    
+		    (handler-case 
+			(progn
+			 (replace-all-mmaps tmpdir (maindir) version)
+			 (setf tmpdir nil))
+		      (error (err)
+		       (warn "Restarting manardb transaction ~A: ~A" message err)
+		       (funcall on-restart)
+		       (go restart))))))))
       (when tmpdir
 	(ignore-errors
 	  (osicat:delete-directory-and-files tmpdir)))

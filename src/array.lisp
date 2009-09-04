@@ -3,25 +3,30 @@
 ;; XXX doesn't work on specialised arrays
 (defun-speedy marray-ref (marray i)
   (declare (type mindex i))
-  (mptr-to-lisp-object (d (mptr-pointer (marray-base marray)) i mptr)))
+  (mptr-to-lisp-object (dw (mptr-pointer (marray-base marray)) i)))
 
 (defun-speedy (setf marray-ref) (new marray i) 
   (declare (type mindex i))
   (let ((new (lisp-object-to-mptr new)))
-    (setf (d (mptr-pointer (marray-base marray)) i mptr)
+    (setf (dw (mptr-pointer (marray-base marray)) i)
 	  new))
   new)
 
 (with-constant-tag-for-class (element-tag mm-box) 
-  (defun-speedy make-marray (length &key initial-element)
+  (defun-speedy make-marray (length &key initial-element (initial-contents nil initial-contents-p))
     (let ((marray (make-instance 'marray :length length 
 				:base (make-mptr element-tag
 						 (mtagmap-alloc (mtagmap element-tag) 
 								(* length #.(stored-type-size 'mptr))))))
-	  (initial-element (lisp-object-to-mptr initial-element)))
+	  (initial-element (lisp-object-to-mptr initial-element))
+	  (initial-contents (mapcar #'lisp-object-to-mptr initial-contents)))
       (let ((ptr (mptr-pointer (marray-base marray))))
-       (loop for i below length do
-	     (setf (d ptr i mptr) initial-element)))
+	(if initial-contents-p
+	    (loop for i below length 
+		  for n in initial-contents
+		  do (setf (dw ptr i) n))
+	    (loop for i below length do
+		  (setf (dw ptr i) initial-element))))
       marray)))
 
 
@@ -32,3 +37,12 @@
   :element-type t
   :element-doc-string "Elements of an marray"
   :index-doc-string "Indices of marray")
+
+
+(defun marray-to-list (marray)
+  (when marray
+    (iter (for c in-marray marray)
+	  (collect c))))
+(defun list-to-marray (list)
+  (when list
+    (make-marray (length list) :initial-contents list)))

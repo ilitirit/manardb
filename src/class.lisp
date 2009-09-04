@@ -1,5 +1,47 @@
 (in-package #:manardb)
 
+(defmacro define-lisp-object-to-mptr ()
+  `(defun-speedy lisp-object-to-mptr (obj)
+       (typecase obj
+	 (mm-object (%ptr obj))
+	 (t (box-object obj)))))
+
+(define-lisp-object-to-mptr) ;; should be redefined after box-object is
+			   ;; defined, which needs many types to be
+			   ;; defined, in a circular fashion
+
+(defmacro with-constant-tag-for-class ((tagsym classname) &body body)
+  (check-type tagsym symbol)
+  (check-type classname symbol)
+  (let ((class (find-class classname)))
+    (ensure-finalize-inheritance class)
+    (let ((tag (mm-metaclass-tag class)))
+      (check-type tag mtag)
+    
+      `(progn
+	 (eval-when (:load-toplevel :compile-toplevel :execute)
+	   (assert (= ,tag ,(mm-metaclass-tag (find-class classname)))
+		   () "The tag for classname ~A has changed; compiled code may be invalid" ',classname))
+	 (symbol-macrolet ((,tagsym ,tag))
+	   ,@body)))))
+
+(defun-speedy force-mptr (obj)
+  (etypecase obj
+    (mptr obj)
+    (mm-object (%ptr obj))))
+		 
+(defun-speedy mptr (obj)
+  (force-mptr obj))
+
+(defun-speedy force-tag (obj)
+  (etypecase obj
+    (mtag obj)
+    (mtagmap (mm-metaclass-tag (mtagmap-class obj)))
+    (symbol (mm-metaclass-tag (find-class obj)))
+    (mm-metaclass (mm-metaclass-tag obj))
+    (mm-object (mptr-tag (%ptr obj)))
+    (mptr (mptr-tag obj))))
+
 (defmethod finalize-inheritance :after ((class mm-metaclass))
   (setup-mtagmap-for-metaclass class)
   (setup-default-metaclass-functions class)
@@ -18,7 +60,7 @@
 			  (declare (type mm-walk-func walker-func))
 			  ,@(loop for offset in offsets collect
 				  `(let ((p (+ mptr ,(ash offset +mtag-bits+))))
-				     (funcall walker-func (d (mptr-pointer p) 0 mptr) p)))))))
+				     (funcall walker-func (dw (mptr-pointer p)) p 1)))))))
 
 	  default-instantiator
 	  (compile nil
@@ -85,7 +127,7 @@
 	    (make-mtagmap))
       (setf (mtagmap-layout (mtagmap tag)) (mm-metaclass-slot-layout class)))
 
-    (assert-class-slot-layout class (mtagmap-layout (mtagmap tag)))
+    (assert-class-slot-layout class (mtagmap-layout (mtagmap tag)) :finalize nil)
 
     (setf mtagmap (mtagmap tag) 
 	  (mtagmap-class mtagmap) class))
@@ -168,19 +210,28 @@
     (values)))
 
 
+(defun mm-slot-offset (class slotname)
+  (let* ((class (force-class class))
+	 (slotd (find slotname (class-slots class) :key #'slot-definition-name)))
+    (assert slotd)
+    (assert (slot-definition-memory-mapped slotd))
+    (slot-value slotd 'offset)))
+
 (defmacro with-raw-slot ((slotname classname &key (accessor-name slotname)) object-pointer &body body &environment env)
-  (let* ((class (find-class classname t env))
-	 (slotd (or (find slotname (class-slots class) :key #'slot-definition-name) 
-		    (error "Class ~A has no slot ~A" classname slotname)))
-	 (offset (slot-value slotd 'offset))
-	 (slot-type (slot-definition-type slotd))
-	 (d-slot-type (if (stored-cffi-type slot-type) slot-type 'mptr)))
-    (alexandria:with-gensyms (apointer)
-      `(let ((,apointer (cffi:inc-pointer ,object-pointer ,offset)))
-	 (declare (type machine-pointer ,apointer))
-	 (symbol-macrolet ((,accessor-name
-			    (d ,apointer 0 ,d-slot-type)))
-	   ,@body)))))
+  (let ((class (find-class classname t env)))
+    (ensure-finalize-inheritance class)
+    (let* (
+	   (slotd (or (find slotname (class-slots class) :key #'slot-definition-name) 
+		      (error "Class ~A has no slot ~A" classname slotname)))
+	   (offset (slot-value slotd 'offset))
+	   (slot-type (slot-definition-type slotd))
+	   (d-slot-type (if (stored-cffi-type slot-type) slot-type 'mptr)))
+      (alexandria:with-gensyms (apointer)
+	`(let ((,apointer (cffi:inc-pointer ,object-pointer ,offset)))
+	   (declare (type machine-pointer ,apointer))
+	   (symbol-macrolet ((,accessor-name
+			      (d ,apointer 0 ,d-slot-type)))
+	     ,@body))))))
 
 (defmacro with-pointer-slots (slotnames (object-pointer classname) &body body)
   (alexandria:once-only (object-pointer)
@@ -193,6 +244,7 @@
       (r slotnames))))
 
 (defun mm-metaclass-slot-layout (class)
+  (ensure-finalize-inheritance class)
   (let ((slots (class-slots class)))
     (loop for s in slots 
 	  when (slot-definition-memory-mapped s)
@@ -207,26 +259,30 @@
      (mapcar #'rest (sort-layout b)))))
 
 
-(defun assert-class-slot-layout (class layout)
+(defun ensure-finalize-inheritance (class)
+  (let ((class (force-class class)))
+    (unless (class-finalized-p class)
+      (finalize-inheritance class))))
+
+(defun assert-class-slot-layout (class layout &key (finalize t))
+  (when finalize 
+    (ensure-finalize-inheritance class))
   (cassert (layout-compatible-p layout (mm-metaclass-slot-layout class)) ()
-	   "Layout for class ~A has changed from ~A" class layout)
-  (when (mm-metaclass-mtagmap class)
-    (cassert (eq class (mtagmap-class (mm-metaclass-mtagmap class))))
-    (cassert (eq (mtagmap (mm-metaclass-tag class)) (mm-metaclass-mtagmap class)))
-    (mtagmap-check (mm-metaclass-mtagmap class))))
+	   "Layout for class ~A has changed from ~A" class layout))
 
 (defmacro check-class-slot-layout (classname &optional (layout (mm-metaclass-slot-layout (find-class classname))))
   `(assert-class-slot-layout (find-class ',classname) ',layout))
 
 (defmacro defmmclass (name direct-supers direct-slots &rest options)
   `(progn
-     (eval-when (:execute :compile-toplevel :load-toplevel)
-       (finalize-inheritance (defclass ,name ,direct-supers ,direct-slots 
-			       ,@(if (assoc :metaclass options) 
-				     options
-				     `((:metaclass mm-metaclass) ,@options)))))
+     (eval-when (:load-toplevel :execute :compile-toplevel) 
+       (defclass ,name ,direct-supers ,direct-slots 
+	 ,@(if (assoc :metaclass options) 
+	       options
+	       `((:metaclass mm-metaclass) ,@options)))
+       (ensure-finalize-inheritance ',name))
 
-     (eval-when (:load-toplevel :execute)
+     (eval-when (:execute)
        (check-class-slot-layout ,name))
 
      (find-class ',name)))
@@ -249,3 +305,33 @@
       (mm-metaclass-filename class)
       (mm-metaclass-tag class)
       (mm-metaclass-slot-layout class)))))
+
+
+(defmacro with-cached-slots (slots instance &body body)
+  (alexandria:with-unique-names (new-val)
+   (let* ((tmps (loop for s in slots do (check-type s symbol) collect (gensym (symbol-name s))))
+	  (funcs (loop for tmp in tmps collect tmp collect `(setf ,tmp)))
+	  (ffuncs (loop for f in funcs collect `(function ,f))))
+     (alexandria:once-only (instance)
+       `(let ,(loop for tmp in tmps
+		    for s in slots
+		    collect `(,tmp (slot-value ,instance ',s))
+		    )
+	  (flet ,(loop for tmp in tmps for s in slots
+		       collect
+		       `(,tmp () ,tmp)
+		       collect
+		       `((setf ,tmp) (,new-val)
+			 (setf ,tmp (setf (slot-value ,instance ',s) ,new-val))))
+	    (declare (inline ,@funcs)
+		     (ignorable ,@ffuncs)
+		     (dynamic-extent ,@ffuncs))
+	    (symbol-macrolet 
+		,(loop for s in slots for tmp in tmps collect
+		       `(,s (,tmp)))
+	      ,@body)))))))
+
+(defmethod print-object ((object mm-object) stream)
+  (print-unreadable-object (object stream :type t)
+    (let ((ptr (ptr object)))
+      (format stream " M@~D(~D:~D)" ptr (mptr-tag ptr) (mptr-index ptr)))))

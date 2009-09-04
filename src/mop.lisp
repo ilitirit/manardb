@@ -14,9 +14,13 @@
   ((%ptr :type mptr :accessor %ptr :initarg %ptr))
   (:documentation "Base class for all memory mapped objects."))
 
+(declaim (ftype (function (mm-object) (mptr)) ptr))
+(defun-speedy ptr (object)
+  (declare (type mm-object object))
+  (the mptr (%ptr object)))
+
 (defun-speedy mm-object-pointer (mm-object)
-  (assert (not (zerop (%ptr mm-object))))
-  (mptr-pointer (%ptr mm-object)))
+  (mptr-pointer (the mptr (ptr mm-object))))
 
 (defmethod shared-initialize :around ((class mm-metaclass)
 				      slot-names
