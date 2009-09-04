@@ -1,7 +1,7 @@
 (cl:in-package #:cl-user)
 
 (asdf:defsystem manardb
-  :version "0.1.20090821"
+  :version "0.1.20090904"
   :licence "LLGPL"
   :components
   ((:module :src
