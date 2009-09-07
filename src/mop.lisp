@@ -24,23 +24,26 @@
 (defun-speedy mm-object-pointer (mm-object)
   (mptr-pointer (ptr mm-object)))
 
-(defmethod shared-initialize :around ((class mm-metaclass)
-				      slot-names
-				      &rest all-keys
-				      &key direct-superclasses
-				      &allow-other-keys)
-  ;;; Just to make sure that we inherit from mm-object
+(defmethod initialize-instance :around ((class mm-metaclass)
+				      &rest all-keys)
+  (ensure-inherits-from-mm-object class #'call-next-method all-keys))
+(defmethod reinitialize-instance :around ((class mm-metaclass)
+				      &rest all-keys)
+  (ensure-inherits-from-mm-object class #'call-next-method all-keys))
+
+(defun ensure-inherits-from-mm-object (class next-method all-keys)
   (let ((parent (find-class 'mm-object)))
    (labels ((inherits-from (classes)
 	      (loop for class in classes
 		    thereis (or (subtypep class parent)
 				(inherits-from (class-direct-subclasses class))))))
      (let ((all-keys (copy-list all-keys)))
-       (setf (getf all-keys :direct-superclasses)
-	     (if (inherits-from direct-superclasses)
-		 direct-superclasses
-		(cons parent direct-superclasses)))
-       (apply #'call-next-method class slot-names all-keys)))))
+       (symbol-macrolet ((direct-superclasses (getf all-keys :direct-superclasses)))
+	 (setf direct-superclasses
+	       (if (inherits-from direct-superclasses)
+		   direct-superclasses
+		  (cons parent direct-superclasses))))
+       (apply next-method class all-keys)))))
 
 (deftype mm-slot-definition-reader ()
   `(function (mm-object) t))
@@ -121,18 +124,18 @@
 	       (incf len (stored-type-size type)))))
 	 eslot)))))
 
-(defmethod slot-value-using-class ((class mm-metaclass) (object mm-object) (slotd mm-effective-slot-definition))
+(defmethod slot-value-using-class ((class mm-metaclass) object (slotd mm-effective-slot-definition))
   (declare (ignorable class))
   (funcall (the mm-slot-definition-reader (slot-definition-reader-function slotd)) object))
 
-(defmethod (setf slot-value-using-class) (new-value (class mm-metaclass) (object mm-object) (slotd mm-effective-slot-definition))
+(defmethod (setf slot-value-using-class) (new-value (class mm-metaclass) object (slotd mm-effective-slot-definition))
   (declare (ignorable class))
   (funcall (the mm-slot-definition-writer (slot-definition-writer-function slotd)) new-value object))
 
-(defmethod slot-boundp-using-class ((class mm-metaclass) (object mm-object) (slotd mm-effective-slot-definition))
+(defmethod slot-boundp-using-class ((class mm-metaclass) object (slotd mm-effective-slot-definition))
   (declare (ignorable class object slotd))
   t)
-(defmethod slot-makunbound-using-class ((class mm-metaclass) (object mm-object) (slotd mm-effective-slot-definition))
+(defmethod slot-makunbound-using-class ((class mm-metaclass) object (slotd mm-effective-slot-definition))
   (declare (ignorable class object slotd))
   (error "Memory mapped slots cannot be unbound."))
 
