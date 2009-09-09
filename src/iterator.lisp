@@ -19,7 +19,7 @@
 		  (decf ,last-index ,len)
 		  (let ((,index ,(if reverse `,last-index `,first-index)))
 		    (loop ,(if fresh-instances `for `with) ,var = (funcall ,instantiator ,index) 
-			  do (locally ,@body)
+			  do (let ,(when fresh-instances `((,var ,var))) ,@body)
 			  (when (= ,index ,(if reverse `,first-index `,last-index))
 			    (return))
 			  (,(if reverse `decf `incf) ,index ,len)

@@ -17,7 +17,10 @@
 (stefil:deftest box-cons-test ()
   (loop repeat 10
 	for cons = nil then (cons cons nil)
-	do (stefil:is (equal cons (box-unbox cons)))))
+	do (stefil:is (equal cons (box-unbox cons))))
+
+  (loop for list in '((1 2 box fail (x y)) (1 . 2) (((nil . 2))) (((1 2 3 (3)) 1) 1 2 2 . ( 1  2 . 3)) )
+	do (stefil:is (equal list (box-unbox list)))))
 
 (stefil:deftest box-unspecialized-array-test ()
   (loop for array in (list 
