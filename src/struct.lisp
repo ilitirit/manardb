@@ -53,19 +53,20 @@
 (declaim (ftype (function (mtag mindex) mptr) make-mptr))
 (defun-speedy make-mptr (tag index)
   (declare (type mtag tag) (type mindex index))
-  (logior (ash index +mtag-bits+) tag))
+  (the mptr (logior (ash index +mtag-bits+) tag)))
 
 (deftype mm-instantiator ()
   `(function (mindex) t)
  
   ;; Allegro 8.1 has a horrible bug with function type specifiers and `the'
-  #+allegro `t
+  #+allegro `function
 )
 
 (deftype mm-walk-func ()
   `(function (mptr mptr mindex) t)
+
   ;; Allegro 8.1 has a horrible bug with function type specifiers and `the'
-  #+allegro `t
+  #+allegro `function
   )
 
 (declaim (inline mtagmap-ptr mtagmap-len mtagmap-elem-len))
@@ -106,7 +107,6 @@
 
 (defun-speedy mpointer (mtag mindex)
   (declare (type mtag mtag) (type mindex mindex))
-  (assert (not (zerop mindex))) ;; XXX remove for faster code
   (cffi:inc-pointer (mtagmap-ptr (the mtagmap (mtagmap mtag))) mindex))
 
 (defun-speedy mptr-pointer (mptr)

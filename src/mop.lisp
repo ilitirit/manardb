@@ -7,7 +7,8 @@
    (default-instantiator :initform nil)
    (default-walker :initform nil)
    (walker :initarg walker :initform nil)
-   (instantiator :accessor mm-instantiator :initarg instantiator :initform nil))
+   (instantiator :accessor mm-instantiator :initarg instantiator :initform nil)
+   (allocator :initform nil))
   (:documentation "Metaclass for memory mapped objects."))
 
 (defclass mm-object ()

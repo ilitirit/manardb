@@ -47,30 +47,94 @@
   (setup-default-metaclass-functions class)
   class)
 
+(defun metaclass-default-walker-form (class)
+  (let ((offsets (loop for slot in (class-slots class)
+		       when (slot-definition-mmap-pointer-p slot)
+		       collect (slot-value slot 'offset))))
+    (when offsets
+      `(lambda (mptr walker-func)
+	 (declare (type mm-walk-func walker-func))
+	 ,@(loop for offset in offsets collect
+		 `(let ((p (+ mptr ,(ash offset +mtag-bits+))))
+		    (funcall walker-func (dw (mptr-pointer p)) p 1)))))))
+
+(defun metaclass-default-instantiator-form (class)
+  `(lambda (index)
+     (declare (optimize speed) (type mindex index))
+     (let ((instance (allocate-instance ,class)))
+       (setf (%ptr instance) (make-mptr ,(mm-metaclass-tag class) index))
+       ,@(loop for s in (class-slots class)
+	      unless (slot-definition-memory-mapped s)
+	      when (slot-definition-initfunction s)
+	      collect `(setf (slot-value instance ',(slot-definition-name s)) (funcall ,(slot-definition-initfunction s))))
+       instance)))
+
+(defun slot-definition-initform-mm-zerop (slotd)
+  (cond ((not (slot-definition-initfunction slotd)))
+	((constantp (slot-definition-initform slotd))
+	 (multiple-value-bind (val failed) 
+	     (ignore-errors (eval (slot-definition-initform slotd)))
+	   (unless failed
+	       (cond ((slot-definition-mm-boxing slotd) 
+		      (eq nil val))
+		     ((slot-definition-mm-write-convertor slotd)
+		      nil)
+		     ((numberp val) 
+		      (= val 0))))))))
+
+(defun metaclass-allocator-form (class)
+  "Returns a lambda-form that allocates a new object, and sets all memory mapped slots to their default values unless they are going to be overridden by the initargs"
+  `(lambda (instance initargs)
+     (declare (dynamic-extent initargs) (optimize speed) (ignorable initargs))
+     (setf (%ptr instance) (make-mptr ,(mm-metaclass-tag class)
+			    (mtagmap-alloc (mtagmap ,(mm-metaclass-tag class)) ,(mm-metaclass-len class))))
+     ,@(let* ((slots (loop for s in (class-slots class)
+			   when 
+			   (and 
+			    (slot-definition-memory-mapped s) 
+			    (not (slot-definition-initform-mm-zerop s))
+			    (slot-definition-initargs s))
+			   collect s))
+	      (gensyms (loop for s in slots collect (gensym (princ-to-string (slot-definition-name s)))))
+	      (params (remove-duplicates (loop for s in slots appending (slot-definition-initargs s))))
+	      (cases (loop for p in params collect
+			   `(,p ,@(loop for s in slots 
+					for g in gensyms
+					when (member p (slot-definition-initargs s))
+					collect `(setf ,g t))))))
+	     (when slots
+	       `((let ,gensyms
+		   (loop for arg in initargs by #'cddr
+			 do (case arg
+			      ,@cases))
+		   ,@(loop for s in slots
+			   for g in gensyms
+			   collect 
+			 `(unless ,g
+			    (funcall (the mm-slot-definition-writer ,(slot-definition-writer-function s)) 
+				     (funcall ,(slot-definition-initfunction s)) instance)))))))
+     instance))
+
 (defun setup-default-metaclass-functions (class)
-  (with-slots (default-walker default-instantiator)
-      class
-    (setf default-walker
-	  (let ((offsets (loop for slot in (class-slots class)
-			       when (slot-definition-mmap-pointer-p slot)
-			       collect (slot-value slot 'offset))))
-	    (when offsets
-	      (compile nil
-		       `(lambda (mptr walker-func)
-			  (declare (type mm-walk-func walker-func))
-			  ,@(loop for offset in offsets collect
-				  `(let ((p (+ mptr ,(ash offset +mtag-bits+))))
-				     (funcall walker-func (dw (mptr-pointer p)) p 1)))))))
-
-	  default-instantiator
-	  (compile nil
-		   `(lambda (index)
-		      (declare (optimize speed) (type mindex index))
-		      (make-instance ,class '%ptr (make-mptr ,(mm-metaclass-tag class) index))))))
-
   (loop for slot in (class-slots class) do
 	(when (slot-definition-memory-mapped slot)
-	  (mm-effective-slot-definition-setup slot))))
+	  (mm-effective-slot-definition-setup slot)))
+  
+  (flet ((maybe-compile (form)
+	   (when form 
+	     (compile nil form))))
+   (with-slots (default-walker default-instantiator allocator)
+       class
+     (setf default-walker
+	   (maybe-compile (metaclass-default-walker-form class))
+
+	   default-instantiator
+	   (compile nil
+		    (metaclass-default-instantiator-form class))
+
+	   allocator
+	   (compile nil
+		    (metaclass-allocator-form class))))))
 
 (defun mm-metaclass-filename (class)
   (assert (class-name class) (class) "Cannot mmap anonymous classes.") ; is possible but not implemented or sensible(?)
@@ -96,9 +160,9 @@
 			 (* amount (mm-metaclass-len class)))))
 
 (defun mm-metaclass-custom-function (class slot
-				      &optional
-				      (default-slot (let ((*package* #.*package*))
-						      (alexandria:symbolicate 'default- slot))))
+				     &optional (default-slot 
+						   (let ((*package* #.*package*))
+						     (alexandria:symbolicate 'default- slot))))
   (typecase (slot-value class slot)
     (null
      (slot-value class default-slot))
@@ -131,31 +195,20 @@
 
     (setf mtagmap (mtagmap tag) 
 	  (mtagmap-class mtagmap) class))
-
   
   class)
 
+(defun-speedy mm-metaclass-initialize-alloc (class instance initargs)
+  (declare (dynamic-extent initargs) (type mm-metaclass class))
+  (funcall (the function (slot-value class 'allocator))
+	   instance initargs))
+
 (defmethod initialize-instance :before ((instance mm-object) &rest initargs)
   (declare (optimize speed) (dynamic-extent initargs))
-  (cond ((eq '%ptr (first initargs)) ;;; XXX this is for speed; if %ptr is given it must be first
-	 (setf (%ptr instance) 
-	       (second initargs)))
-	(t
-	 (let ((class (class-of instance)))
-	   (setf (%ptr instance) (mm-metaclass-alloc class))
-	   
-    ;;; XXX this is a horrible hack because we don't support unbound slots
-    ;;; not in shared-initialize because that is more likely to destroy the system's optimizations
-	   (let ((slot-definitions (class-slots class)))
-	     (loop for s in slot-definitions do
-		   (when (and (slot-definition-memory-mapped s)
-			      (slot-definition-initfunction s))
-		     (unless (get-properties initargs (slot-definition-initargs s))
-		       (setf (slot-value-using-class class instance s) 
-			     (funcall (slot-definition-initfunction s))))))))))
-  instance)
+  (let ((class (class-of instance)))
+    (mm-metaclass-initialize-alloc class instance initargs)))
 
-(defun slot-definition-always-boundp (&rest args)
+(defun always-true (&rest args)
   (declare (ignore args))
   t)
 
@@ -163,6 +216,30 @@
   (if (stored-cffi-type (slot-definition-type slotd))
       (slot-definition-type slotd)
       'mm-box))
+
+(defun slot-definition-mm-boxing (slotd)
+  (eq (slot-definition-mm-type slotd) 'mm-box))
+
+(defun slot-definition-mm-read-convertor (slotd)
+  (cond ((slot-definition-mm-boxing slotd)
+	 'mptr-to-lisp-object)))
+
+(defun slot-definition-mm-write-convertor (slotd)
+  (cond ((slot-definition-mm-boxing slotd)
+	 'lisp-object-to-mptr)))
+
+(defun slot-definition-mm-read-form (slotd raw-access-form)
+  (let ((c (slot-definition-mm-read-convertor slotd)))
+   (if c `(,c ,raw-access-form)
+       raw-access-form)))
+
+(defun slot-definition-mm-write-form (slotd raw-write-form new-val-sym)
+  (let ((c (slot-definition-mm-write-convertor slotd)))
+   (cond (c
+	  `(let ((,new-val-sym (,c ,new-val-sym))) ;; note that (lisp-object-to-mptr new-val) can invalidate the current pointer
+	     ,raw-write-form))
+	 (t
+	  raw-write-form))))
 
 (defun mm-effective-slot-definition-lambda-forms (slotd)
   (let* (
@@ -176,9 +253,7 @@
 		   'mptr
 		   type)))
 	 (read-form
-	  (if (eq type 'mm-box)
-	      `(mptr-to-lisp-object ,raw-access-form)
-	      raw-access-form))
+	  (slot-definition-mm-read-form slotd raw-access-form))
 	 (declare-form
 	  `(declare (optimize speed))))
     (values
@@ -187,9 +262,7 @@
 	,read-form)
      `(lambda (new-val object)
 	,declare-form
-	(let ,(when (eq type 'mm-box)
-		    `((new-val (lisp-object-to-mptr new-val)))) ;; note that (lisp-object-to-mptr new-val) can invalidate the current pointer
-	  (setf ,raw-access-form new-val))
+	,(slot-definition-mm-write-form slotd `(setf ,raw-access-form new-val) 'new-val)
 	new-val))))
 
 (defun mm-effective-slot-definition-setup (slotd)
@@ -201,12 +274,12 @@
 	(mm-effective-slot-definition-lambda-forms slotd)
       (setf (slot-definition-reader-function slotd)
 	    (compile nil
-		     (eval reader))
+		     reader)
 	    (slot-definition-writer-function slotd)
 	    (compile nil
-		     (eval writer))
+		     writer)
 	 #- (and)
-	 (slot-definition-boundp-function #'slot-definition-always-boundp)))
+	 (slot-definition-boundp-function #'always-true)))
     (values)))
 
 
@@ -217,7 +290,8 @@
     (assert (slot-definition-memory-mapped slotd))
     (slot-value slotd 'offset)))
 
-(defmacro with-raw-slot ((slotname classname &key (accessor-name slotname)) object-pointer &body body &environment env)
+(defmacro with-raw-slot ((slotname classname &key (accessor-name slotname)) 
+			 object-pointer &body body &environment env)
   (let ((class (find-class classname t env)))
     (ensure-finalize-inheritance class)
     (let* (

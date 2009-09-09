@@ -1,33 +1,30 @@
 (in-package #:manardb)
 
-;; XXX this can be made more efficient if class-specifier is known to be constant at expansion time
 (defmacro doclass ((var class-specifier &key fresh-instances reverse) &body body)
-  (alexandria:with-unique-names (step tag class mtagmap mptr last-mptr first-mptr)
-    (let ((body-form
-	   (if fresh-instances
-	       `(let ((,var (make-instance ,class '%ptr ,mptr))) ,@body)
-	       `(locally ,@body)))
-	  (incf-step (if reverse `decf `incf))
-	  (cmp (if reverse 
-		   `(>= ,mptr ,first-mptr)
-		   `(> ,last-mptr ,mptr))))
-     `(let* ((,class (force-class ,class-specifier))
-	     (,tag (mm-metaclass-tag ,class))
-	     (,step (ash (mm-metaclass-len ,class) +mtag-bits+)))
-	(declare (type mptr ,step))
-	(when ,tag   ; if finalize-inheritance has not yet been called
-	  (let ((,mtagmap (mtagmap ,tag)))
-	    (unless (mtagmap-closed-p ,mtagmap)
-	      (let* ((,last-mptr (make-mptr ,tag (mtagmap-last-index ,mtagmap)))
-		     (,first-mptr (make-mptr ,tag (mtagmap-first-index ,mtagmap)))
-		     (,mptr ,(if reverse `(- ,last-mptr ,step) `,first-mptr))
-		     ,@(unless fresh-instances `((,var (make-instance ,class '%ptr ,mptr)))))
-		(loop while ,cmp
-		      do ,body-form
-		      (,incf-step ,mptr ,step)
-		      ,@(unless fresh-instances
-				`((setf (%ptr ,var) ,mptr))))))))))))
-
+  (alexandria:with-unique-names (tag class mtagmap 
+				      last-index first-index instantiator len
+				      index)
+    `(let* ((,class (force-class ,class-specifier))
+	    (,tag (mm-metaclass-tag ,class))
+	    (,len (mm-metaclass-len ,class)))
+       (declare (type mindex ,len))
+       (when ,tag   ; if finalize-inheritance has not yet been called
+	 (let ((,mtagmap (mtagmap ,tag)))
+	   (unless (mtagmap-closed-p ,mtagmap)
+	      (let* ((,instantiator (mtagmap-instantiator ,mtagmap))
+		     (,last-index (mtagmap-last-index ,mtagmap))
+		     (,first-index (mtagmap-first-index ,mtagmap)))
+		(declare (type mindex ,last-index ,first-index))
+		(when (> ,last-index ,first-index)
+		  (decf ,last-index ,len)
+		  (let ((,index ,(if reverse `,last-index `,first-index)))
+		    (loop ,(if fresh-instances `for `with) ,var = (funcall ,instantiator ,index) 
+			  do (locally ,@body)
+			  (when (= ,index ,(if reverse `,first-index `,last-index))
+			    (return))
+			  (,(if reverse `decf `incf) ,index ,len)
+			  ,@(unless fresh-instances `((setf (%ptr ,var) (make-mptr ,tag ,index))))))))))))))
+  
 (defun mm-subclasses (class)
   (remove-duplicates
    (list* class (loop for c in (class-direct-subclasses class)

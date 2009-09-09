@@ -9,7 +9,7 @@
 			 (:file "package")
 			 (:file "widths" :depends-on ("package"))
 			 (:file "utils" :depends-on ("package"))
-			 (:file "mtagmap" :depends-on ("widths" "struct"))
+			 (:file "mtagmap" :depends-on ("widths" "struct" "mop"))
 			 (:file "mop" :depends-on ("struct"))
 			 (:file "struct" :depends-on ("utils" "widths"))
 			 (:file "class" :depends-on ("mop" "mtagmap"))

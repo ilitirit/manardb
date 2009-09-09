@@ -200,7 +200,7 @@
 	     ((nil)))))))
 
 (defun instantiate-default-mm-object (mptr)
-  (make-instance (mtagmap-class (mtagmap (mptr-tag mptr))) '%ptr mptr))
+  (funcall (slot-value (mtagmap-class (mtagmap (mptr-tag mptr))) 'default-instantiator) (mptr-index mptr)))
 
 (defmacro with-object-cache ((name &key (test ''equal)) &body body)
   (alexandria:with-unique-names (cache string)

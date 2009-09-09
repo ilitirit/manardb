@@ -6,9 +6,46 @@
 	((mpointer tag index) mm-box)
       (mptr-to-lisp-object ptr))))
 
-(defun-speedy box-cons (cons)
-  ;;; XXX this is a lost cause anyway so don't bother making it efficient?
-  (ptr (make-instance 'mm-cons :car (car cons) :cdr (cdr cons))))
+(with-constant-tag-for-class (element-tag mm-box) 
+  (defun-speedy make-marray (length &key 
+				    (initial-element nil initial-element-p) 
+				    (initial-contents nil initial-contents-p) 
+				    (marray-class 'marray))
+    (let ((marray (make-instance marray-class 
+				 :length length 
+				 :base (make-mptr element-tag
+						  (mtagmap-alloc (mtagmap element-tag) 
+								 (* length #.(stored-type-size 'mptr)))))))
+      (symbol-macrolet ()
+	(cond (initial-contents-p
+	       (let ((initial-contents (mapcar #'lisp-object-to-mptr initial-contents))
+		     (ptr (mptr-pointer (marray-base marray))))
+		(loop for i below length 
+		      for n in initial-contents
+		      do (setf (dw ptr i) n))))
+	      (initial-element-p
+	       (let ((initial-element (lisp-object-to-mptr initial-element))
+		     (ptr (mptr-pointer (marray-base marray))))
+		(loop for i below length do
+		      (setf (dw ptr i) initial-element))))))
+      marray)))
+
+(defun box-cons (cons)
+  (declare (optimize speed))
+  (cond ((consp (cdr cons))
+	 (let* ((new (cons (car cons) nil))
+		(new-tail new)
+		(len 2))
+	   (declare (type fixnum len) (dynamic-extent new))
+	   (loop for x = (cdr cons) then (cdr x)
+		 while (consp x)
+		 do (setf new-tail (setf (cdr new-tail) (cons (car x) nil)))
+		 (incf len)
+		 finally (setf (cdr new-tail) (cons x nil)))
+	   (ptr (make-marray len :marray-class 'mm-array-as-list)))
+	 )
+	(t
+	 (ptr (make-instance 'mm-cons :car (car cons) :cdr (cdr cons))))))
 
 (with-constant-tag-for-class (tag mm-cons)
   (check-class-slot-layout mm-cons)
@@ -17,6 +54,16 @@
    (with-pointer-slots (a b)
        ((mpointer tag index) mm-cons)
      (cons (mptr-to-lisp-object a) (mptr-to-lisp-object b)))))
+
+(with-constant-tag-for-class (tag mm-array-as-list)
+  (defun unbox-array-as-list (index)
+    (with-pointer-slots (base length)
+	((mpointer tag index) mm-array-as-list)
+      (let ((base base) (length length) (cons (cons nil nil)))
+	(loop for i below (1- length)
+	      for tail = cons then (setf (cdr tail) (cons (mptr-to-lisp-object (dw (mptr-pointer base) i)) nil))
+	      finally (setf (cdr tail) (mptr-to-lisp-object (dw (mptr-pointer base) (1- length)))))
+	cons))))
 
 (defmacro prop-for-mm-symbol (sym)
   `(get ,sym 'mm-symbol))
@@ -27,7 +74,7 @@
   (check-class-slot-layout mm-symbol)
 
   (declaim (ftype (function (symbol) (mptr)) uncached-box-symbol box-symbol))
-  (defun uncached-box-symbol (object)
+  (defun box-symbol-miss (object)
     (declare (type symbol object)
 	     (optimize speed))
     (let* 
@@ -52,7 +99,7 @@
 	   (make-mptr tag 0))
 	  (t
 	   (or (prop-for-mm-symbol object)
-	       (uncached-box-symbol object)))))
+	       (box-symbol-miss object)))))
 
  (defun-speedy unbox-symbol (index)
    (unless (zerop index)

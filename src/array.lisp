@@ -12,23 +12,6 @@
 	  new))
   new)
 
-(with-constant-tag-for-class (element-tag mm-box) 
-  (defun-speedy make-marray (length &key initial-element (initial-contents nil initial-contents-p))
-    (let ((marray (make-instance 'marray :length length 
-				:base (make-mptr element-tag
-						 (mtagmap-alloc (mtagmap element-tag) 
-								(* length #.(stored-type-size 'mptr))))))
-	  (initial-element (lisp-object-to-mptr initial-element))
-	  (initial-contents (mapcar #'lisp-object-to-mptr initial-contents)))
-      (let ((ptr (mptr-pointer (marray-base marray))))
-	(if initial-contents-p
-	    (loop for i below length 
-		  for n in initial-contents
-		  do (setf (dw ptr i) n))
-	    (loop for i below length do
-		  (setf (dw ptr i) initial-element))))
-      marray)))
-
 
 (defclause-sequence in-marray index-of-marray
   :access-fn 'marray-ref

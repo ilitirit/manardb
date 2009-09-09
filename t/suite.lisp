@@ -7,7 +7,7 @@
 (defsuite manardb-test)
 
 (defun test-all-manardb (&key (cleanup t) (function 'manardb-test))
-  (let ((dir (format nil "/tmp/manardb-test-~36R/" (random most-positive-fixnum)))
+  (let ((dir (format nil "/tmp/manardb-test-~36R/" (random most-positive-fixnum (make-random-state t))))
 	(*mmap-may-allocate* t))
     (use-mmap-dir dir)
     (unwind-protect

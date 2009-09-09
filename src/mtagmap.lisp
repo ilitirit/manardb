@@ -188,7 +188,8 @@
       (mtagmap-open mtagmap))
 
     (let ((next (mtagmap-next mtagmap)))
-      (when (> (+ next bytes) len)
+      (declare (type mindex next))
+      (when (> (the mindex (+ next bytes)) (the mindex len))
 	(mtagmap-extend-alloc mtagmap bytes))
       (incf (mtagmap-next mtagmap) bytes)
       next)))

@@ -5,6 +5,10 @@
    (symbol-name :initarg :symbol))
   (instantiator unbox-symbol))
 
+(defmmclass mm-box ()
+  ((ptr))
+  (instantiator unbox-box))
+
 (defmmclass marray () ;; special arrays
   ((length :type mindex :initarg :length :reader marray-length)
    (base :type mptr :initarg :base :reader marray-base))
@@ -25,9 +29,10 @@
    (b :initarg :cdr))
   (instantiator unbox-cons))
 
-(defmmclass mm-box ()
-  ((ptr))
-  (instantiator unbox-box))
+(defmmclass mm-array-as-list (mm-array)
+  ()
+  (walker walk-array)
+  (instantiator unbox-array-as-list))
 
 (eval-when (:compile-toplevel :load-toplevel)
   (defun specialized-class-array-boxer-name (classname)

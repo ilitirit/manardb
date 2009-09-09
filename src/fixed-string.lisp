@@ -12,7 +12,7 @@
     (let ((base-string (cl-irregsexp.bytestrings:force-string  
 			  (subseq
 			   (cl-irregsexp.bytestrings:force-byte-vector 
-			    (tag-general-unbox-array (mptr-tag (%ptr mfs)) (mptr-index (%ptr mfs))))
+			    (tag-general-unbox-array (mptr-tag (ptr mfs)) (mptr-index (ptr mfs))))
 			   0
 			   (min cropped-length length)))))
       (if (> cropped-length length)
