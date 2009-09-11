@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <title>manardb</title>
+    <link rel="stylesheet" type="text/css" href="../style.css"/>
+  </head>
+  
+  <body>
+    <div class="header">
+      <h1>manardb</h1>
+
+      <h2>Fast, persistent Lisp object serialisation</h2>
+    </div>
+    
+    <h3>Introduction</h3>
+    
+    <p> Manardb provides persistent classes (integrated into the
+      object system via the meta-object protocol), stored efficiently
+      in memory mapped regions. It features transactions, two
+      different garbage collection mechanisms (to clean up
+      unreferenced objects in the datastore), in-place modification of
+      arrays, efficient in-place numeric typed slots, and the ability
+      to transparently serialise Lisp objects of many types (lists,
+      vectors, floats, integers, symbols, strings).</p>
+
+    <p>It allows Common Lisp programs to efficiently access in-memory
+    representations of large numbers of persistent objects without
+    putting pressure on the Lisp garbage collector.</p>
+
+    <h3> Concurrency </h3>
+
+    <p>Multiple concurrent readers and writers can access the database
+      without problems; both multiple threads and multiple processes
+      work fine. However, they have to either arrange not allocate new
+      objects (by using fixed-size numeric-typed slots, and
+      fixed-length strings) or ensure via some locking mechanism that
+      only one thread can allocate at a time, and all processes update
+      their mappings after an allocation. Additionally, they must
+      ensure that writers do not conflict together or confuse
+      readers.</p>
+
+    <p> Alternatively, they could use the race free transaction
+      support. (Readers continue to refer to an old snapshot until
+      they explicitly reload the database.)</p>
+      
+      <h3> Efficiency </h3>
+
+      <p> According to our benchmarks, when instantiating a object
+	with two slots one million times, manardb is about seven times
+	faster than AllegroCache 2.1.1 on Allegro 8.1, and about fifteen
+	times faster than AllegroCache on SBCL 1.0.31. It is more than
+	ten times faster to iterate over the 1M objects created and sum
+	the values of one numeric slot on Allegro Lisp, and about one
+	hundred times faster on SBCL.</p>
+
+      <h3> Portability </h3>
+
+      <p>Manardb works on Common Lisp implementations on Linux. We
+      have tested SBCL 1.0.31 and Allegro 8.1, and lightly tested
+      Lispworks and ClozureCL.
+
+      <p>It uses the mremap system call so is restricted to Linux. It
+      would be trivial to change the mremap to a munmap, followed by
+      mmap on other UN*X like platforms, as manardb is already
+      prepared for the base address of the mapping to change.
+
+    <h3> Using it </h3>
+
+    <p> Start
+      Lisp. Get <a href="http://www.cliki.net/ASDF-Install">asdf-install</a>.
+    </p>
+
+    <pre>
+      CL-USER> (asdf-install:install 'manardb)
+      CL-USER> (asdf:operate 'asdf:load-op 'manardb)
+    </pre>
+
+    <pre>
+CL-USER&gt; (defclass foo ()
+  ((next :initform nil)
+   (val :initarg :val :accessor foo-val :type (unsigned-byte 32)))
+  (:metaclass manardb:mm-metaclass))
+#&lt;MM-METACLASS FOO&gt;
+</pre>
+    
+    <p>The <a href="api.html">API is documented</a>.</p>
+    
+    <h3>Downloads</h3>
+
+    <p><a href="downloads/">Downloads</a></p>
+
+    <h3>Git development tree access</h3>
+
+    <p>git clone
+    http://cl-www.msi.co.jp/projects/manardb/manardb.git</p>
+
+    <h3>Future directions</h3>
+
+    <p>manardb is just starting out. It hasn't tapped the full
+    potential of this approach. There are many ways to improve it.</p>
+
+    <ul>
+      <li>Indexing</li>
+      <li>Storage of more complex types: union types, enumerated types,
+	variable length objects, interface to the ability to store directly
+	store arrays of instances of user-defined class (instead of
+	an array of pointers to such instances), etc.</li>
+      <li>Storage of more Lisp types: multidimensional arrays, complex
+	numbers, bignums, characters, etc.</li>
+      <li>More transparent shared access to arrays of unboxed
+      types.</li>
+      <li>Many MOP optimisations: generating custom accessor methods
+	for memory mapped slots.</li>
+      <li>Improve the whole-datastore garbage collector to use more memory
+      efficient datastructures.</li>
+    </ul>
+
+  </body>
+</html>
