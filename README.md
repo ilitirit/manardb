@@ -2,7 +2,7 @@ manardb is a portable (across Lisps on Linux) memory mapped database for Common 
 ===
 It frees one from the garbage collector but stays within MOP.
 
-See its [homepage at MSI][http://cl-www.msi.co.jp/projects/manardb/index.html]
+See its [homepage at MSI](http://cl-www.msi.co.jp/projects/manardb/index.html)
 
 Testing
 ===
