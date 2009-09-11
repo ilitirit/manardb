@@ -1,0 +1,572 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html> 
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <title>MANARDB - API reference</title>
+  <style type="text/css">
+  pre { padding:5px; background-color:#e0e0e0 }
+  h3, h4 { text-decoration: underline; }
+  a { text-decoration: none; padding: 1px 2px 1px 2px; }
+  a:visited { text-decoration: none; padding: 1px 2px 1px 2px; }
+  a:hover { text-decoration: none; padding: 1px 1px 1px 1px; border: 1px solid #000000; } 
+  a:focus { text-decoration: none; padding: 1px 2px 1px 2px; border: none; }
+  a.none { text-decoration: none; padding: 0; }
+  a.none:visited { text-decoration: none; padding: 0; } 
+  a.none:hover { text-decoration: none; border: none; padding: 0; } 
+  a.none:focus { text-decoration: none; border: none; padding: 0; } 
+  a.noborder { text-decoration: none; padding: 0; } 
+  a.noborder:visited { text-decoration: none; padding: 0; } 
+  a.noborder:hover { text-decoration: none; border: none; padding: 0; } 
+  a.noborder:focus { text-decoration: none; border: none; padding: 0; }  
+  pre.none { padding:5px; background-color:#ffffff }
+  pre { white-space: pre-wrap;word-wrap: break-word; }
+  </style>
+</head>
+
+<body bgcolor=white>
+
+<h2> MANARDB - API reference</h2>
+
+<p> This is the API reference. <a href="index.html">There is also an introduction to this library.</a></p>
+
+<blockquote>
+<br>&nbsp;<br><h3><a name=abstract class=none>Abstract</a></h3>
+
+<p>The code is released under the <a href="http://opensource.franz.com/preamble.html">Lisp Lesser GPL</a>.</p>
+
+<p>
+<font color=red>Download shortcut:</font> <a href="downloads/manardb.tar.gz">manardb.tar.gz</a>.</p>
+
+</blockquote>
+
+<br>&nbsp;<br><h3><a class=none name="contents">Contents</a></h3>
+<ol>
+  <li><a href="#download">Download</a>
+  <li><a href="#dictionary">The MANARDB dictionary</a>
+    <ol>
+      <li><a href="#doclass"><code>doclass</code></a>
+      <li><a href="#rewrite-gc"><code>rewrite-gc</code></a>
+      <li><a href="#with-transaction"><code>with-transaction</code></a>
+      <li><a href="#with-cached-slots"><code>with-cached-slots</code></a>
+      <li><a href="#gc"><code>gc</code></a>
+      <li><a href="#lisp-object-to-mptr-impl"><code>lisp-object-to-mptr-impl</code></a>
+      <li><a href="#with-object-cache"><code>with-object-cache</code></a>
+      <li><a href="#defmmclass"><code>defmmclass</code></a>
+      <li><a href="#direct-slot-numeric-maref"><code>direct-slot-numeric-maref</code></a>
+      <li><a href="#make-mm-fixed-string"><code>make-mm-fixed-string</code></a>
+      <li><a href="#mm-fixed-string-value"><code>mm-fixed-string-value</code></a>
+      <li><a href="#clean-mmap-dir"><code>clean-mmap-dir</code></a>
+      <li><a href="#mptr"><code>mptr</code></a>
+      <li><a href="#close-all-mmaps"><code>close-all-mmaps</code></a>
+      <li><a href="#meq"><code>meq</code></a>
+      <li><a href="#mptr-to-lisp-object"><code>mptr-to-lisp-object</code></a>
+      <li><a href="#*mmap-may-allocate*"><code>*mmap-may-allocate*</code></a>
+      <li><a href="#dosubclasses"><code>dosubclasses</code></a>
+      <li><a href="#count-all-instances"><code>count-all-instances</code></a>
+      <li><a href="#make-marray"><code>make-marray</code></a>
+      <li><a href="#lisp-object-to-mptr"><code>lisp-object-to-mptr</code></a>
+      <li><a href="#list-to-marray"><code>list-to-marray</code></a>
+      <li><a href="#marray-to-list"><code>marray-to-list</code></a>
+      <li><a href="#*mmap-base-pathname*"><code>*mmap-base-pathname*</code></a>
+      <li><a href="#use-mmap-dir"><code>use-mmap-dir</code></a>
+      <li><a href="#marray"><code>marray</code></a>
+      <li><a href="#retrieve-all-instances"><code>retrieve-all-instances</code></a>
+      <li><a href="#mm-object"><code>mm-object</code></a>
+      <li><a href="#marray-ref"><code>marray-ref</code></a>
+      <li><a href="#wipe-all-mmaps"><code>wipe-all-mmaps</code></a>
+      <li><a href="#mm-metaclass"><code>mm-metaclass</code></a>
+      <li><a href="#print-all-mmaps"><code>print-all-mmaps</code></a>
+      <li><a href="#open-all-mmaps"><code>open-all-mmaps</code></a>
+      <li><a href="#marray-length"><code>marray-length</code></a>
+    </ol>
+  <li><a href="#ack">Acknowledgements</a>
+</ol>
+
+<br>&nbsp;<br><h3><a class=none name="download">Download</a></h3>
+
+<p>MANARDB together with this documentation can be downloaded from  <a href="downloads/manardb.tar.gz">manardb.tar.gz</a>.</p>
+
+<br>&nbsp;<br><h3><a class=none name="dictionary">The MANARDB dictionary</a></h3>
+
+
+
+<!-- Entry for DOCLASS -->
+
+<p><br>[Macro]<br><a class=none name='doclass'><b>doclass</b> <i>(var class-specifier <tt>&amp;key</tt> fresh-instances reverse) declaration* statement*</i> =&gt; <i>result</i></a>
+<pre>
+For each object in the memory-mapped datastore of class denoted by
+CLASS-SPECIFIER (evaluated), lexically bind VAR to a Lisp
+object representing that object around BODY and execute it.
+
+FRESH-INSTANCES (generalized boolean, not evaluated), if true means
+means that a fresh Lisp object will be created for each datastore
+object -- by default a single Lisp object is instantiated and it is
+modified destructively to point to each object in the class.
+
+REVERSE (generalized boolean, not evaluated), if true means that
+objects will be iterated in order from newest to oldest. If false (default),
+they are iterated from oldest to newest.
+
+Also see dosubclasses.
+
+
+</pre>
+
+<!-- End of entry for DOCLASS -->
+
+
+<!-- Entry for REWRITE-GC -->
+
+<p><br>[Function]<br><a class=none name='rewrite-gc'><b>rewrite-gc</b> <i>root-objects-sequence <tt>&amp;key</tt> progress verbose shared-classes base-shared-classes</i> =&gt; <i>result</i></a>
+<pre>
+An alternative, sloppier GC algorithm with a space complexity that is not proportional to the size of the datastore.
+
+Creates a new datastore by copying each element of
+ROOT-OBJECTS-SEQUENCE as if it were entirely self contained except for
+any shared objects in SHARED-CLASSES.
+
+Cannot handle pointers to the inside of arrays at all; they will be
+recreated pointing to fresh objects. Note that arrays pointing to
+complex objects (or any user defined classes) are stored as arrays of
+mptrs, with each mptr pointing to the actual object; it is fine to
+have pointers to these objects, because the actual objects are not
+stored in the array.
+
+</pre>
+
+<!-- End of entry for REWRITE-GC -->
+
+
+<!-- Entry for WITH-TRANSACTION -->
+
+<p><br>[Macro]<br><a class=none name='with-transaction'><b>with-transaction</b> <i>(<tt>&amp;key</tt> message on-restart) declaration* statement*</i> =&gt; <i>result</i></a>
+<pre>
+Copy the datastore to a temporary directory; open the datastore
+from this temporary directory and execute BODY. If, at the end of
+BODY, the main datastore has had another transaction on it, then run
+ON-RESTART and restart the procedure. Otherwise atomically replace
+the main datastore.
+
+Should be safe, as it uses lockfiles. The initial copy will retry if a
+transaction occurs while it is being performed.
+
+It is slow copying the datastore. (A better copy than
+alexandria:copy-file should be easy to implement.)
+
+The proposed reflink(2) system call would make a radically more
+efficient implementation possible.
+
+
+</pre>
+
+<!-- End of entry for WITH-TRANSACTION -->
+
+
+<!-- Entry for WITH-CACHED-SLOTS -->
+
+<p><br>[Macro]<br><a class=none name='with-cached-slots'><b>with-cached-slots</b> <i>slots instance declaration* statement*</i> =&gt; <i>result</i></a>
+<pre>
+Like with-slots, but each slot is only read from the datastore once.
+It is written to the datastore immediately after every write, and the
+cached version becomes the value written (not the value as serialised
+and deserialised).
+
+This is an optimization to stop repeatedly instantiating slots into
+Lisp memory. Note that it also useful because it preserves
+non-persistent slots of objects stored in SLOTS of INSTANCE over their
+lexical scope.
+
+</pre>
+
+<!-- End of entry for WITH-CACHED-SLOTS -->
+
+
+<!-- Entry for GC -->
+
+<p><br>[Function]<br><a class=none name='gc'><b>gc</b> <i>root-objects-sequence <tt>&amp;key</tt> verbose collect-and-compact</i> =&gt; <i>result</i></a>
+<pre>
+Do a full and precise garbage collection over all objects in the memory mapped system. 
+If COLLECT-AND-COMPACT is true, then unused objeccts are removed.
+
+Uses at least two pointers of Lisp memory per object and more if
+objects are densely referenced. See REWRITE-GC for a sloppier
+alternative that does not need so much memory.
+
+
+</pre>
+
+<!-- End of entry for GC -->
+
+
+<!-- Entry for LISP-OBJECT-TO-MPTR-IMPL -->
+
+<p><br>[Generic function]<br><a class=none name='lisp-object-to-mptr-impl'><b>lisp-object-to-mptr-impl</b> <i>object</i> =&gt; <i>result</i></a>
+<pre>
+Override this generic function to give an user-defined class an
+alternative serialisation in the memory mapped datastore. Return the
+mptr pointing to this serialisation.
+
+Note that the serialisation for builtin types are inlined and cannot
+be affected.
+
+
+</pre>
+
+<!-- End of entry for LISP-OBJECT-TO-MPTR-IMPL -->
+
+
+<!-- Entry for WITH-OBJECT-CACHE -->
+
+<p><br>[Macro]<br><a class=none name='with-object-cache'><b>with-object-cache</b> <i>(name <tt>&amp;key</tt> test) declaration* statement*</i> =&gt; <i>result</i></a>
+<pre>
+Lexically bind a function with NAME for BODY that, when passed an
+object, will either instantiate a new memory mapped object for it, or
+if the object is equal under TEST to a previous object passed to NAME,
+will return the same memory mapped object.
+
+</pre>
+
+<!-- End of entry for WITH-OBJECT-CACHE -->
+
+
+<!-- Entry for DEFMMCLASS -->
+
+<p><br>[Macro]<br><a class=none name='defmmclass'><b>defmmclass</b> <i>name direct-supers direct-slots <tt>&amp;rest</tt> options</i> =&gt; <i>result</i></a>
+<pre>
+Define a memory mapped class, like defclass.
+
+Automatically adds :metaclass mm-metaclass to options, if it is not
+present, finalizes the class immediately, and puts in an assertion
+that the class layout in the loaded datastore is compatible.
+
+</pre>
+
+<!-- End of entry for DEFMMCLASS -->
+
+
+<!-- Entry for DIRECT-SLOT-NUMERIC-MAREF -->
+
+<p><br>[Macro]<br><a class=none name='direct-slot-numeric-maref'><b>direct-slot-numeric-maref</b> <i>class object slot element-type index</i> =&gt; <i>result</i></a>
+<pre>
+Access element INDEX of an array of ELEMENT-TYPE that is stored in
+slot SLOT of OBJECT, which is an instance of class CLASS, without
+instantiating the array into the memory of the host Lisp
+implementation.
+
+</pre>
+
+<!-- End of entry for DIRECT-SLOT-NUMERIC-MAREF -->
+
+
+<!-- Entry for MAKE-MM-FIXED-STRING -->
+
+<p><br>[Function]<br><a class=none name='make-mm-fixed-string'><b>make-mm-fixed-string</b> <i>length <tt>&amp;key</tt> value</i> =&gt; <i>result</i></a>
+<pre>
+Create a fixed length string object of size LENGTH; stores into it the string in VALUE if given.
+
+A fixed length string allows string objects to be modified in the
+datastore without allocating more space.
+
+
+</pre>
+
+<!-- End of entry for MAKE-MM-FIXED-STRING -->
+
+
+<!-- Entry for MM-FIXED-STRING-VALUE -->
+
+<p><br>[Accessor]<br><a class=none name='mm-fixed-string-value'><b>mm-fixed-string-value</b> <i>mfs</i> =&gt; <i>result</i></a>
+<br><a class=none><tt>(setf (</tt><b>mm-fixed-string-value</b> <i>mfs</i><tt>)</tt> <i>string</i><tt>)</tt></a>
+<pre>
+The string stored in the fixed length string MFS. If the string was cropped, then append ... to the stored value.
+
+Can be set with setf. If the new value is too long then it will be silently cropped.
+
+
+</pre>
+
+<!-- End of entry for MM-FIXED-STRING-VALUE -->
+
+
+<!-- Entry for CLEAN-MMAP-DIR -->
+
+<p><br>[Function]<br><a class=none name='clean-mmap-dir'><b>clean-mmap-dir</b> <i><tt>&amp;optional</tt> dir</i> =&gt; <i>result</i></a>
+<pre>
+Unsafely remove all temporary directories from failed transactions
+that were not cleaned up because the transactor crashed.
+
+[Not tested or used.] 
+
+</pre>
+
+<!-- End of entry for CLEAN-MMAP-DIR -->
+
+
+<!-- Entry for MPTR -->
+
+<p><br>[Function]<br><a class=none name='mptr'><b>mptr</b> <i>obj</i> =&gt; <i>result</i></a>
+<pre>
+If OBJ is already an integer, return it. If it is a memory mapped object, return the MPTR corresponding to it.
+Otherwise, raise an error.
+
+</pre>
+
+<!-- End of entry for MPTR -->
+
+
+<!-- Entry for CLOSE-ALL-MMAPS -->
+
+<p><br>[Function]<br><a class=none name='close-all-mmaps'><b>close-all-mmaps</b> <i></i> =&gt; <i>result</i></a>
+<pre>
+Closes the datastore, unmapping and closing all files. Afterwards, a new datastore can be opened in a different locaiton.
+
+</pre>
+
+<!-- End of entry for CLOSE-ALL-MMAPS -->
+
+
+<!-- Entry for MEQ -->
+
+<p><br>[Function]<br><a class=none name='meq'><b>meq</b> <i>a b</i> =&gt; <i>result</i></a>
+<pre>
+True iff either (eq a b) or A and B are both datastore objects
+representing the same object in the datastore.
+
+</pre>
+
+<!-- End of entry for MEQ -->
+
+
+<!-- Entry for MPTR-TO-LISP-OBJECT -->
+
+<p><br>[Function]<br><a class=none name='mptr-to-lisp-object'><b>mptr-to-lisp-object</b> <i>mptr</i> =&gt; <i>result</i></a>
+<pre>
+Deference the object at location MPTR in the memory mapped datastore and create a Lisp representation of it.
+
+</pre>
+
+<!-- End of entry for MPTR-TO-LISP-OBJECT -->
+
+
+<!-- Entry for *MMAP-MAY-ALLOCATE* -->
+
+<p><br>[Special variable]<br><a class=none name='*mmap-may-allocate*'><b>*mmap-may-allocate*</b></a>
+<pre>
+If this is not true, and an attempt is made to extend a memory mapped region, an error will be signalled.
+
+</pre>
+
+<!-- End of entry for *MMAP-MAY-ALLOCATE* -->
+
+
+<!-- Entry for DOSUBCLASSES -->
+
+<p><br>[Macro]<br><a class=none name='dosubclasses'><b>dosubclasses</b> <i>(var class-specifier <tt>&amp;rest</tt> options) declaration* statement*</i> =&gt; <i>result</i></a>
+<pre>
+For the class itself and each subclass of the class denoted by CLASS-SPECIFIER (evaluated) run doclass.
+
+</pre>
+
+<!-- End of entry for DOSUBCLASSES -->
+
+
+<!-- Entry for COUNT-ALL-INSTANCES -->
+
+<p><br>[Function]<br><a class=none name='count-all-instances'><b>count-all-instances</b> <i>class</i> =&gt; <i>result</i></a>
+<pre>
+Return a count of the number of instances of the class denoted by CLASS and any subclasses of it.
+
+</pre>
+
+<!-- End of entry for COUNT-ALL-INSTANCES -->
+
+
+<!-- Entry for MAKE-MARRAY -->
+
+<p><br>[Function]<br><a class=none name='make-marray'><b>make-marray</b> <i>length <tt>&amp;key</tt> initial-element initial-contents marray-class</i> =&gt; <i>result</i></a>
+<pre>
+Create a new marray (memory-mapped array) structure in the datastore, similarly to make-array.
+
+</pre>
+
+<!-- End of entry for MAKE-MARRAY -->
+
+
+<!-- Entry for LISP-OBJECT-TO-MPTR -->
+
+<p><br>[Function]<br><a class=none name='lisp-object-to-mptr'><b>lisp-object-to-mptr</b> <i>obj</i> =&gt; <i>result</i></a>
+<pre>
+Stores the object OBJ in the memory mapped datastore and returns the mptr referring to it
+
+</pre>
+
+<!-- End of entry for LISP-OBJECT-TO-MPTR -->
+
+
+<!-- Entry for LIST-TO-MARRAY -->
+
+<p><br>[Function]<br><a class=none name='list-to-marray'><b>list-to-marray</b> <i>list</i> =&gt; <i>result</i></a>
+<pre>
+Converts a Lisp list to a memory-mapped array object; nil is converted to nil
+
+</pre>
+
+<!-- End of entry for LIST-TO-MARRAY -->
+
+
+<!-- Entry for MARRAY-TO-LIST -->
+
+<p><br>[Function]<br><a class=none name='marray-to-list'><b>marray-to-list</b> <i>marray</i> =&gt; <i>result</i></a>
+<pre>
+Converts a memory mapped array to a Lisp list; nil is converted to nil
+
+</pre>
+
+<!-- End of entry for MARRAY-TO-LIST -->
+
+
+<!-- Entry for *MMAP-BASE-PATHNAME* -->
+
+<p><br>[Special variable]<br><a class=none name='*mmap-base-pathname*'><b>*mmap-base-pathname*</b></a>
+<pre>
+The base path in which the datastore files are to be found.
+
+</pre>
+
+<!-- End of entry for *MMAP-BASE-PATHNAME* -->
+
+
+<!-- Entry for USE-MMAP-DIR -->
+
+<p><br>[Function]<br><a class=none name='use-mmap-dir'><b>use-mmap-dir</b> <i>dir <tt>&amp;key</tt> if-does-not-exist</i> =&gt; <i>result</i></a>
+<pre>
+Set the memory mapped datastore to map files inside DIR.
+
+</pre>
+
+<!-- End of entry for USE-MMAP-DIR -->
+
+
+<!-- Entry for MARRAY -->
+
+<p><br>[Standard class]<br><a class=none name='marray'><b>marray</b></a>
+<pre>
+The base representation of a memory-mapped vector.
+
+</pre>
+
+<!-- End of entry for MARRAY -->
+
+
+<!-- Entry for RETRIEVE-ALL-INSTANCES -->
+
+<p><br>[Function]<br><a class=none name='retrieve-all-instances'><b>retrieve-all-instances</b> <i>class</i> =&gt; <i>result</i></a>
+<pre>
+Returns a list of all instances of CLASS.
+
+</pre>
+
+<!-- End of entry for RETRIEVE-ALL-INSTANCES -->
+
+
+<!-- Entry for MM-OBJECT -->
+
+<p><br>[Standard class]<br><a class=none name='mm-object'><b>mm-object</b></a>
+<pre>
+Base class for all memory mapped objects.
+
+</pre>
+
+<!-- End of entry for MM-OBJECT -->
+
+
+<!-- Entry for MARRAY-REF -->
+
+<p><br>[Accessor]<br><a class=none name='marray-ref'><b>marray-ref</b> <i>marray i</i> =&gt; <i>result</i></a>
+<br><a class=none><tt>(setf (</tt><b>marray-ref</b> <i>marray i</i><tt>)</tt> <i>new</i><tt>)</tt></a>
+<pre>
+Like aref, but for memory mapped arrays
+
+</pre>
+
+<!-- End of entry for MARRAY-REF -->
+
+
+<!-- Entry for MARRAY-LENGTH -->
+
+<p><br>[Method]<br><a class=none><b>marray-length</b> <i>(object marray)</i> =&gt; <i>result</i></a>
+<pre>
+automatically generated reader method
+
+</pre>
+
+<!-- End of entry for MARRAY-LENGTH -->
+
+
+<!-- Entry for WIPE-ALL-MMAPS -->
+
+<p><br>[Function]<br><a class=none name='wipe-all-mmaps'><b>wipe-all-mmaps</b> <i></i> =&gt; <i>result</i></a>
+<pre>
+Delete all objects from all classes.
+
+</pre>
+
+<!-- End of entry for WIPE-ALL-MMAPS -->
+
+
+<!-- Entry for MM-METACLASS -->
+
+<p><br>[Standard class]<br><a class=none name='mm-metaclass'><b>mm-metaclass</b></a>
+<pre>
+Metaclass for memory mapped objects.
+
+</pre>
+
+<!-- End of entry for MM-METACLASS -->
+
+
+<!-- Entry for PRINT-ALL-MMAPS -->
+
+<p><br>[Function]<br><a class=none name='print-all-mmaps'><b>print-all-mmaps</b> <i><tt>&amp;optional</tt> stream</i> =&gt; <i>result</i></a>
+<pre>
+Describe the state of the datastore
+
+</pre>
+
+<!-- End of entry for PRINT-ALL-MMAPS -->
+
+
+<!-- Entry for OPEN-ALL-MMAPS -->
+
+<p><br>[Function]<br><a class=none name='open-all-mmaps'><b>open-all-mmaps</b> <i></i> =&gt; <i>result</i></a>
+<pre>
+Maps the datastore into memory.
+
+</pre>
+
+<!-- End of entry for OPEN-ALL-MMAPS -->
+
+
+<!-- Entry for MARRAY-LENGTH -->
+
+<p><br>[Generic function]<br><a class=none name='marray-length'><b>marray-length</b> <i>object</i> =&gt; <i>result</i></a>
+<pre>
+
+
+</pre>
+
+<!-- End of entry for MARRAY-LENGTH -->
+
+
+<br>&nbsp;<br><h3><a class=none name="ack">Acknowledgements</a></h3>
+
+<p>
+This documentation was prepared with a modified version of <a href="http://weitz.de/documentation-template/">DOCUMENTATION-TEMPLATE</a>.
+</p>
+<p>
+$Header: /usr/local/cvsrep/documentation-template/output.lisp,v 1.14 2008/05/29 08:23:37 edi Exp $
+<p><a href="index.html">BACK TO THE MAIN PROJECT PAGE</a>
+
+</body>
+</html>
