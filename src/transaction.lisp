@@ -64,7 +64,7 @@
     (tagbody 
      restart
        (setf version (dir-version from-dir))
-       (assert version (from-dir to-dir) "Trying to copy from a database that has no version")
+       (assert version (from-dir to-dir) "Trying to copy from a datastore that has no version")
        (when (probe-file to-dir)
 	 (mapc #'delete-file (osicat:list-directory to-dir))
 	 (assert (not (osicat:list-directory to-dir))))
@@ -114,6 +114,21 @@
   (merge-pathnames "main/" *mmap-base-pathname*))
 
 (defmacro with-transaction ((&key message on-restart) &body body)
+  "Copy the datastore to a temporary directory; open the datastore
+from this temporary directory and execute BODY. If, at the end of
+BODY, the main datastore has had another transaction on it, then run
+ON-RESTART and restart the procedure. Otherwise atomically replace
+the main datastore.
+
+Should be safe, as it uses lockfiles. The initial copy will retry if a
+transaction occurs while it is being performed.
+
+It is slow copying the datastore. (A better copy than
+alexandria:copy-file should be easy to implement.)
+
+The proposed reflink(2) system call would make a radically more
+efficient implementation possible.
+"
   (alexandria:with-unique-names (restart transaction)
    `(flet ((,transaction ()
 	     ,@body)
@@ -176,9 +191,14 @@
       (close-all-mmaps))))
 
 (defun clean-mmap-dir (&optional (dir *mmap-base-pathname*))
+  "Unsafely remove all temporary directories from failed transactions
+that were not cleaned up because the transactor crashed.
+
+[Not tested or used.] "
   (osicat:delete-directory-and-files (merge-pathnames "tmp/" dir)))
 
 (defun use-mmap-dir (dir &key (if-does-not-exist :create))
+  "Set the memory mapped datastore to map files inside DIR."
   (close-all-mmaps)
   (let ((maindir   
 	 (let ((*mmap-base-pathname* dir))
@@ -187,6 +207,7 @@
 	   (check-schema maindir)
 	   (setf *mmap-base-pathname* dir
 		 *mmap-pathname-defaults* maindir)
+	   (open-all-mmaps)
 	   dir)
 	  (t
 	   (ecase if-does-not-exist
@@ -196,13 +217,17 @@
 	      (setf (dir-version maindir) (build-version))
 	      (use-mmap-dir dir :if-does-not-exist :error))
 	     (:error
-	      (error "Directory ~A does not exist" dir))
+	      (error "Directory ~A does not contain a memory mapped datastore." dir))
 	     ((nil)))))))
 
 (defun instantiate-default-mm-object (mptr)
   (funcall (slot-value (mtagmap-class (mtagmap (mptr-tag mptr))) 'default-instantiator) (mptr-index mptr)))
 
 (defmacro with-object-cache ((name &key (test ''equal)) &body body)
+  "Lexically bind a function with NAME for BODY that, when passed an
+object, will either instantiate a new memory mapped object for it, or
+if the object is equal under TEST to a previous object passed to NAME,
+will return the same memory mapped object."
   (alexandria:with-unique-names (cache string)
     `(let ((,cache (make-hash-table :test ,test)))
        (flet ((,name (,string)

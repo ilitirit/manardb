@@ -2,9 +2,10 @@
 
 (defmacro define-lisp-object-to-mptr ()
   `(defun-speedy lisp-object-to-mptr (obj)
-       (typecase obj
-	 (mm-object (ptr obj))
-	 (t (box-object obj)))))
+     "Stores the object OBJ in the memory mapped datastore and returns the mptr referring to it"
+     (typecase obj
+       (mm-object (ptr obj))
+       (t (box-object obj)))))
 
 (define-lisp-object-to-mptr) ;; should be redefined after box-object is
 			   ;; defined, which needs many types to be
@@ -31,6 +32,8 @@
     (mm-object (ptr obj))))
 		 
 (defun-speedy mptr (obj)
+  "If OBJ is already an integer, return it. If it is a memory mapped object, return the MPTR corresponding to it.
+Otherwise, raise an error."
   (force-mptr obj))
 
 (defun-speedy force-tag (obj)
@@ -184,7 +187,7 @@
 	(setf tag (or existing
 		      (next-available-tag)))
 
-	(assert tag (*mtagmaps*) "No more tags available (too many types defined in the memory mapped database).")))
+	(assert tag (*mtagmaps*) "No more tags available (too many types defined in the memory mapped datastore).")))
 
     (unless (mtagmap tag)
       (setf (mtagmap tag)
@@ -348,6 +351,11 @@
   `(assert-class-slot-layout (find-class ',classname) ',layout))
 
 (defmacro defmmclass (name direct-supers direct-slots &rest options)
+  "Define a memory mapped class, like defclass.
+
+Automatically adds :metaclass mm-metaclass to options, if it is not
+present, finalizes the class immediately, and puts in an assertion
+that the class layout in the loaded datastore is compatible."
   `(progn
      (eval-when (:load-toplevel :execute :compile-toplevel) 
        (defclass ,name ,direct-supers ,direct-slots 
@@ -382,6 +390,15 @@
 
 
 (defmacro with-cached-slots (slots instance &body body)
+  "Like with-slots, but each slot is only read from the datastore once.
+It is written to the datastore immediately after every write, and the
+cached version becomes the value written (not the value as serialised
+and deserialised).
+
+This is an optimization to stop repeatedly instantiating slots into
+Lisp memory. Note that it also useful because it preserves
+non-persistent slots of objects stored in SLOTS of INSTANCE over their
+lexical scope."
   (alexandria:with-unique-names (new-val)
    (let* ((tmps (loop for s in slots do (check-type s symbol) collect (gensym (symbol-name s))))
 	  (funcs (loop for tmp in tmps collect tmp collect `(setf ,tmp)))

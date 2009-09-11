@@ -2,6 +2,7 @@
 
 ;; XXX doesn't work on specialised arrays
 (defun-speedy marray-ref (marray i)
+  "Like aref, but for memory mapped arrays"
   (declare (type mindex i))
   (mptr-to-lisp-object (dw (mptr-pointer (marray-base marray)) i)))
 
@@ -23,9 +24,11 @@
 
 
 (defun marray-to-list (marray)
+  "Converts a memory mapped array to a Lisp list; nil is converted to nil"
   (when marray
     (iter (for c in-marray marray)
 	  (collect c))))
 (defun list-to-marray (list)
+  "Converts a Lisp list to a memory-mapped array object; nil is converted to nil"
   (when list
     (make-marray (length list) :initial-contents list)))

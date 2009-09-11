@@ -22,12 +22,14 @@
   (setf *stored-symbols* nil))
 
 (defun close-all-mmaps ()
+  "Closes the datastore, unmapping and closing all files. Afterwards, a new datastore can be opened in a different locaiton."
   (clear-caches)
 
   (loop for m across *mtagmaps* do
 	(when m (mtagmap-close m))))
 
 (defun open-all-mmaps ()
+  "Maps the datastore into memory."
   (finalize-all-mmaps)
   (assert (or (not (mtagmap-closed-p (mtagmap 0))) (not *stored-symbols*)))
 
@@ -38,13 +40,14 @@
 	  (mtagmap-check m))))
 
 (defun shrink-all-mmaps ()
-  "Truncate all mmaps to their current next pointers"
+  "Truncate all mmaps to smallest size (rounded up to the nearest page) which can contain all their data."
   (loop for m across *mtagmaps* do
 	(when (and m (not (mtagmap-closed-p m)))
 	  (mtagmap-shrink m))))
 
 
 (defun wipe-all-mmaps ()
+  "Delete all objects from all classes."
   (clear-caches)
   (loop for m across *mtagmaps*
 	when (and m (not (mtagmap-closed-p m)))
@@ -53,6 +56,7 @@
 	(mtagmap-shrink m)))
 
 (defun print-all-mmaps (&optional (stream *standard-output*))
+  "Describe the state of the datastore"
   (loop for m across *mtagmaps*
 	when (and m (not (mtagmap-closed-p m)))
 	do (format stream "~&~A~%" m)))

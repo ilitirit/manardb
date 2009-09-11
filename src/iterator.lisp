@@ -1,6 +1,21 @@
 (in-package #:manardb)
 
 (defmacro doclass ((var class-specifier &key fresh-instances reverse) &body body)
+"For each object in the memory-mapped datastore of class denoted by
+CLASS-SPECIFIER (evaluated), lexically bind VAR to a Lisp
+object representing that object around BODY and execute it.
+
+FRESH-INSTANCES (generalized boolean, not evaluated), if true means
+means that a fresh Lisp object will be created for each datastore
+object -- by default a single Lisp object is instantiated and it is
+modified destructively to point to each object in the class.
+
+REVERSE (generalized boolean, not evaluated), if true means that
+objects will be iterated in order from newest to oldest. If false (default),
+they are iterated from oldest to newest.
+
+Also see dosubclasses.
+"
   (alexandria:with-unique-names (tag class mtagmap 
 				      last-index first-index instantiator len
 				      index)
@@ -32,6 +47,7 @@
 		      appending (mm-subclasses c)))))
 
 (defmacro dosubclasses ((var class-specifier &rest options) &body body)
+"For the class itself and each subclass of the class denoted by CLASS-SPECIFIER (evaluated) run doclass."
   (alexandria:with-unique-names (one-class class)
     `(flet ((,one-class (,class)
 	     (doclass (,var ,class ,@options)
@@ -40,12 +56,14 @@
 	    do (,one-class ,class)))))
 
 (defun retrieve-all-instances (class)
+  "Returns a list of all instances of CLASS."
   (let (ret)
     (dosubclasses (p class :fresh-instances t)
       (push p ret))
     ret))
 
 (defun count-all-instances (class)
+  "Return a count of the number of instances of the class denoted by CLASS and any subclasses of it."
   (loop for c in (mm-subclasses (force-class class))
 	for m = (mm-metaclass-mtagmap c)
 	summing

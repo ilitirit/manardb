@@ -12,6 +12,7 @@
 (defmmclass marray () ;; special arrays
   ((length :type mindex :initarg :length :reader marray-length)
    (base :type mptr :initarg :base :reader marray-base))
+  (:documentation "The base representation of a memory-mapped vector.")
   (walker walk-array))
 
 (defmmclass mm-array (marray) ;; stored lisp arrays
@@ -78,7 +79,16 @@
 	  do (setf (aref array i) (funcall (the mm-instantiator instantiator) index)))
     array))
 
-(defgeneric lisp-object-to-mptr-impl (object))
+(defgeneric lisp-object-to-mptr-impl (object)
+  (:documentation 
+
+"Override this generic function to give an user-defined class an
+alternative serialisation in the memory mapped datastore. Return the
+mptr pointing to this serialisation.
+
+Note that the serialisation for builtin types are inlined and cannot
+be affected.
+"))
 
 (eval-when (:compile-toplevel :load-toplevel)
   (defun generate-boxer (types)

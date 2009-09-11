@@ -2,11 +2,16 @@
 
 (defvar *mmap-pathname-defaults*)
 (defvar *mmap-base-pathname*)
+(setf (documentation '*mmap-base-pathname* 'variable)
+      "The base path in which the datastore files are to be found.")
 (defvar *mmap-sharing* osicat-posix:MAP-SHARED)
 (defvar *mmap-protection* (logior osicat-posix:PROT-READ osicat-posix:PROT-WRITE))
-(defvar *mmap-may-allocate* t)
+(defvar *mmap-may-allocate* t
+  "If this is not true, and an attempt is made to extend a memory mapped region, an error will be signalled.")
 
 (deftype mptr ()
+  "A representation of a location in the memory mapped datastore.
+Remains constant across remappings of the memory mapped regions to different offsets in physical memory."
   `(unsigned-byte ,+mptr-bits+))
 
 (deftype mtag ()
@@ -113,6 +118,7 @@
   (mpointer (mptr-tag mptr) (mptr-index mptr)))
 
 (defun-speedy mptr-to-lisp-object (mptr)
+  "Deference the object at location MPTR in the memory mapped datastore and create a Lisp representation of it."
   (funcall (the mm-instantiator (mm-instantiator-for-tag (mptr-tag mptr))) 
 	   (mptr-index mptr)))
 

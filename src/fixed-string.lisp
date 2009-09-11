@@ -7,6 +7,10 @@
 (defvar *mm-fixed-string-uncropper* 'mm-fixed-string-uncropper)
 
 (defun mm-fixed-string-value (mfs)
+  "The string stored in the fixed length string MFS. If the string was cropped, then append ... to the stored value.
+
+Can be set with setf. If the new value is too long then it will be silently cropped.
+"
   (with-pointer-slots (cropped-length length)
       ((mm-object-pointer mfs) mm-fixed-string)
     (let ((base-string (cl-irregsexp.bytestrings:force-string  
@@ -21,6 +25,11 @@
 
 (with-constant-tag-for-class (element-tag boxed-byte) 
   (defun-speedy make-mm-fixed-string (length &key value)
+    "Create a fixed length string object of size LENGTH; stores into it the string in VALUE if given.
+
+A fixed length string allows string objects to be modified in the
+datastore without allocating more space.
+"
     (let ((mfs (make-instance 'mm-fixed-string 
 				 :length length 
 				 :base (make-mptr element-tag

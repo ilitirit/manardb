@@ -106,13 +106,19 @@
 (defun rewrite-gc (root-objects-sequence &key 
 		   progress verbose shared-classes 
 		   (base-shared-classes '(mm-symbol)))
-  "An alternative, sloppier GC algorithm with a space complexity that is not proportional to the size of the database.
+  
+"An alternative, sloppier GC algorithm with a space complexity that is not proportional to the size of the datastore.
 
-Creates a new database by copying each element of
+Creates a new datastore by copying each element of
 ROOT-OBJECTS-SEQUENCE as if it were entirely self contained except for
 any shared objects in SHARED-CLASSES.
 
-Cannot handle pointers to the inside of arrays at all."
+Cannot handle pointers to the inside of arrays at all; they will be
+recreated pointing to fresh objects. Note that arrays pointing to
+complex objects (or any user defined classes) are stored as arrays of
+mptrs, with each mptr pointing to the actual object; it is fine to
+have pointers to these objects, because the actual objects are not
+stored in the array."
   (check-mmap-truncate-okay)
   (let* ((new-mtagmaps
 	 (map '(vector (or null mtagmap)) 

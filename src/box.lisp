@@ -11,6 +11,7 @@
 				    (initial-element nil initial-element-p) 
 				    (initial-contents nil initial-contents-p) 
 				    (marray-class 'marray))
+    "Create a new marray (memory-mapped array) structure in the datastore, similarly to make-array."
     (let ((marray (make-instance marray-class 
 				 :length length 
 				 :base (make-mptr element-tag
@@ -170,6 +171,10 @@
 (defsetf direct-slot-mptr set-direct-slot-mptr)
 
 (defmacro direct-slot-numeric-maref (class object slot element-type index)
+  "Access element INDEX of an array of ELEMENT-TYPE that is stored in
+slot SLOT of OBJECT, which is an instance of class CLASS, without
+instantiating the array into the memory of the host Lisp
+implementation."
   `(with-pointer-slots (base)
        ((mptr-pointer (direct-slot-mptr ,class ,object ,slot)) marray)
      (d (mptr-pointer base) ,index ,element-type)))
@@ -182,6 +187,8 @@
 (defsetf direct-slot-numeric-maref set-direct-slot-numeric-maref)
 
 (defun-speedy meq (a b)
+  "True iff either (eq a b) or A and B are both datastore objects
+representing the same object in the datastore."
   (or (eq a b) 
       (and (typep a 'mm-object) (typep b 'mm-object)
 	   (= (ptr a) (ptr b)))))

@@ -65,9 +65,9 @@
   "Do a full and precise garbage collection over all objects in the memory mapped system. 
 If COLLECT-AND-COMPACT is true, then unused objeccts are removed.
 
-Uses at least 16 bytes of Lisp memory per object and more if objects
-are densely referenced. See REWRITE-GC for a sloppier alternative that
-does not need so much memory.
+Uses at least two pointers of Lisp memory per object and more if
+objects are densely referenced. See REWRITE-GC for a sloppier
+alternative that does not need so much memory.
 "
 
   (declare (optimize speed))
