@@ -149,10 +149,20 @@
   (symbol-macrolet ((len (mtagmap-len mtagmap)))
     (flet ((trunc ()
 	     (osicat-posix:ftruncate (mtagmap-fd mtagmap) new-len))
-	   (remap ()
-	     (setf (mtagmap-ptr mtagmap)
-		   (osicat-posix:mremap (mtagmap-ptr mtagmap) len new-len osicat-posix:MREMAP-MAYMOVE)
-		   len new-len)))
+            (remap ()
+              #+linux
+                (progn
+                  ;; linux supports MREMAP
+                  (setf (mtagmap-ptr mtagmap) (osicat-posix:mremap (mtagmap-ptr mtagmap)
+                                                len new-len osicat-posix:MREMAP-MAYMOVE))
+                  (setf (mtagmap-len mtagmap) new-len))
+              #-linux
+                (progn
+                  ;; others require MUNMAP/MMAP
+                  (osicat-posix:munmap (mtagmap-ptr mtagmap) len)
+                  (setf (mtagmap-ptr mtagmap) (osicat-posix:mmap (cffi:null-pointer) new-len
+                                                *mmap-protection* *mmap-sharing* (mtagmap-fd mtagmap) 0))
+                  (setf (mtagmap-len mtagmap) new-len))))
       (let (done)
 	(unwind-protect
 	     (progn
