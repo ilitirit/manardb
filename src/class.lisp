@@ -424,5 +424,9 @@ lexical scope."
 
 (defmethod print-object ((object mm-object) stream)
   (print-unreadable-object (object stream :type t)
-    (let ((ptr (ptr object)))
-      (format stream " M@~D(~D:~D)" ptr (mptr-tag ptr) (mptr-index ptr)))))
+    ;; eliminate errors whwn printing class prototype on sbcl
+    ;; by conditionalizing output on boundness check of slot
+    (if (slot-boundp object '%ptr) 
+      (let ((ptr (ptr object)))
+        (format stream " M@~D(~D:~D)" ptr (mptr-tag ptr) (mptr-index ptr)))
+      (format stream "--unbound--"))))
