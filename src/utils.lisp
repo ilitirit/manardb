@@ -1,4 +1,8 @@
-(in-package #:manardb)
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
+
+(in-package :manardb)
+
 
 (defmacro defun-speedy (name lambda-list &body body &environment env)
   (declare (ignorable env))
@@ -10,13 +14,15 @@
        (declare (optimize speed))
        ,@body)))
 
+
 (defun force-class (class-specifer)
   (typecase class-specifer
-    (class class-specifer)
-    (t
-     (find-class class-specifer))))
+    (class  class-specifer)
+    (t      (find-class class-specifer))))
+
 
 (defmacro cassert (test-form &optional places string &rest args)
-  (declare (ignore places));; XXX
+  (declare (ignore places))
   `(unless ,test-form
-     (cerror "Ignore the assertion" ,(or string (format nil "Assertion ~S failed" test-form)) ,@args)))
+     (cerror "Ignore the assertion"
+       ,(or string (format nil "Assertion ~S failed" test-form)) ,@args)))

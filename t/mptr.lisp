@@ -1,4 +1,8 @@
-(in-package #:manardb.test)
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
+
+
+(in-package :manardb-test)
 
 (stefil:in-suite manardb-test)
 

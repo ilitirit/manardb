@@ -1,16 +1,20 @@
-(in-package #:manardb)
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
 
-;; XXX doesn't work on specialised arrays
-(defun-speedy marray-ref (marray i)
-  "Like aref, but for memory mapped arrays"
+(in-package :manardb)
+
+
+
+(def (function oi) marray-ref (marray i)
+  "Like aref, but for memory mapped arrays. note: doesn't work on specialised arrays"
   (declare (type mindex i))
   (mptr-to-lisp-object (dw (mptr-pointer (marray-base marray)) i)))
 
-(defun-speedy (setf marray-ref) (new marray i) 
+
+(def (function oi) (setf marray-ref) (new marray i) 
   (declare (type mindex i))
   (let ((new (lisp-object-to-mptr new)))
-    (setf (dw (mptr-pointer (marray-base marray)) i)
-	  new))
+    (setf (dw (mptr-pointer (marray-base marray)) i) new))
   new)
 
 
@@ -28,6 +32,7 @@
   (when marray
     (iter (for c in-marray marray)
 	  (collect c))))
+
 (defun list-to-marray (list)
   "Converts a Lisp list to a memory-mapped array object; nil is converted to nil"
   (when list
