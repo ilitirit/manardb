@@ -11,6 +11,7 @@
     :hu.dwim.defclass-star)
   (:export
     :*mtagmaps*
+    :*mmap-pathname-defaults*
     :*mmap-base-pathname*
     :*mmap-may-allocate*
     :mptr
@@ -49,8 +50,8 @@
     :clear-caches-hard    
     :with-object-cache
     :with-cached-slots
-    :direct-slot-numeric-maref))
+    :direct-slot-numeric-maref
+    
+    ))
 
 
-;;  #+sbcl (:import-from #:sb-pcl #:reader-function #:writer-function)
-;; XXXX to delete when we have time for something better  
