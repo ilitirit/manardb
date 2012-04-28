@@ -3,12 +3,12 @@
 
 (in-package :manardb)
 
-(defun compute-default-mmap-pathname ()
-  (merge-pathnames #p".mm/" (user-homedir-pathname)))
+(defun compute-default-location-for-store ()
+  (ensure-directories-exist
+    (merge-pathnames #p".mm/" (user-homedir-pathname)) :verbose t))
   
-(defvar *mmap-pathname-defaults* (ensure-directories-exist
-                                   (compute-default-mmap-pathname) :verbose t))
-
+(defvar *mmap-pathname-defaults*)
+                            
 (defvar *mmap-base-pathname*)
 
 (defvar *mmap-sharing*     osicat-posix:MAP-SHARED)
