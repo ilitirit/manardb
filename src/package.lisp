@@ -60,6 +60,8 @@
     :empty
     :emptyp
     :mlist
-    :as-list))
+    :as-list
+    :mpush
+    :mpop))
 
 
