@@ -240,7 +240,7 @@ that were not cleaned up because the transactor crashed. [Not tested or used.] "
           ((nil)))))))
 
 
-(defun ensure-manardb (&optional (default-location (compute-default-mmap-pathname)))
+(defun ensure-manardb (&optional (default-location (compute-default-location-for-store)))
   (unless (and (boundp '*mmap-base-pathname*) *mmap-base-pathname*)
     (use-mmap-dir default-location)))
 
