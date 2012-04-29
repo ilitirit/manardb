@@ -21,6 +21,7 @@
                                (:file "gc" :depends-on ("finalize"))
                                (:file "rewrite-gc" :depends-on ("gc"))
                                (:file "box" :depends-on ("types"))
+                               (:file "mcons" :depends-on ("box"))
                                (:file "finalize" :depends-on ("box"))
                                (:file "iterator" :depends-on ("class"))
                                (:file "fixed-string" :depends-on ("box"))
