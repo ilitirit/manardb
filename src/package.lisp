@@ -50,6 +50,16 @@
     :with-object-cache
     :with-cached-slots
     :direct-slot-numeric-maref    
-    :ensure-manardb))
+    :ensure-manardb
+    :mcons
+    :mcar
+    :mcdr
+    :mcadr
+    :mcddr
+    :mconsp
+    :empty
+    :emptyp
+    :mlist
+    :as-list))
 
 
