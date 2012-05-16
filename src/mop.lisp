@@ -93,7 +93,11 @@
 
 
 (defclass mm-slot-definition (slot-definition)   
-  ((persistent :initarg :persistent :reader slot-definition-memory-mapped :initform t)))
+  ((persistent
+     :initarg :persistent     
+     :reader slot-definition-memory-mapped-p
+     :reader slot-definition-memory-mapped
+     :initform t)))
 
 
 (defclass mm-effective-slot-definition (mm-slot-definition standard-effective-slot-definition)
@@ -150,12 +154,12 @@
 
 (defmethod compute-effective-slot-definition :around ((class mm-metaclass) name dslotds)
   (declare (ignorable name))
-  (let ((dslotds (remove nil dslotds)))
-    (let ((last-dslot (first (last dslotds))))
+  (let ((dslotds (remove nil dslotds))) 
+    (let ((last-dslot (first (last dslotds)))) 
       (let ((*mop-hack-effective-slot-definition-class*
               (when (slot-definition-memory-mapped last-dslot) 
                 (find-class 'mm-effective-slot-definition))))
-        (let ((eslot (call-next-method)))
+        (let ((eslot (call-next-method))) 
           (when (slot-definition-memory-mapped eslot)
             (setf (slot-definition-mmap-pointer-p eslot) 
               (loop for dslot in dslotds
