@@ -65,19 +65,19 @@
   `(d ,machine-pointer ,index mptr))
 
 
-(def (function oi) mptr-tag (mptr)
+(defun-speedy mptr-tag (mptr)
   (declare (type mptr mptr) (optimize (safety 0)))
   (the mtag (logand mptr (1- (ash 1 +mtag-bits+))))) ; Allegro  8.1 is too stupid to optimize ldb
 
 
 (declaim (ftype (function (mptr) (mindex)) mptr-index))
-(def (function oi) mptr-index (mptr)
+(defun-speedy  mptr-index (mptr)
   (declare (type mptr mptr) (optimize (safety 0)))
   (the mindex (ash mptr (- +mtag-bits+))))
 
 
 (declaim (ftype (function (mtag mindex) mptr) make-mptr))
-(def (function oi) make-mptr (tag index)
+(defun-speedy make-mptr (tag index)
   (declare (type mtag tag) (type mindex index))
   (the mptr (logior (ash index +mtag-bits+) tag)))
 
@@ -112,7 +112,7 @@
 (declaim (type mtagmaps-array *mtagmaps*))
 
 
-(def (function oi) mtagmap (mtag)
+(defun-speedy mtagmap (mtag)
   (declare (type mtag mtag))
   (aref (the mtagmaps-array *mtagmaps*) mtag))
 
@@ -132,16 +132,16 @@
 	thereis (unless (mtagmap i) i)))
 
 
-(def (function oi) mpointer (mtag mindex)
+(defun-speedy mpointer (mtag mindex)
   (declare (type mtag mtag) (type mindex mindex))
   (cffi:inc-pointer (mtagmap-ptr (the mtagmap (mtagmap mtag))) mindex))
 
 
-(def (function oi) mptr-pointer (mptr)
+(defun-speedy mptr-pointer (mptr)
   (mpointer (mptr-tag mptr) (mptr-index mptr)))
 
 
-(def (function oi) mptr-to-lisp-object (mptr)
+(defun-speedy mptr-to-lisp-object (mptr)
   "Deference the object at location MPTR in the memory mapped
   datastore and create a Lisp representation of it."
   (funcall (the mm-instantiator (mm-instantiator-for-tag (mptr-tag mptr))) 
