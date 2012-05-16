@@ -79,7 +79,6 @@
     :define-simple-persistent-class
     :define-layered-persistent-class
     :define-transactional-persistent-class
-
     :define-persistent-class
         
     :atomic
