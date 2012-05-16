@@ -5,13 +5,13 @@
 
 
 
-(def (function oi) marray-ref (marray i)
+(defun-speedy marray-ref (marray i)
   "Like aref, but for memory mapped arrays. note: doesn't work on specialised arrays"
   (declare (type mindex i))
   (mptr-to-lisp-object (dw (mptr-pointer (marray-base marray)) i)))
 
 
-(def (function oi) (setf marray-ref) (new marray i) 
+(defun-speedy (setf marray-ref) (new marray i) 
   (declare (type mindex i))
   (let ((new (lisp-object-to-mptr new)))
     (setf (dw (mptr-pointer (marray-base marray)) i) new))
