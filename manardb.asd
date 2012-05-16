@@ -30,7 +30,7 @@
                                (:file "mcons")        
                                (:file "gc")           
                                (:file "rewrite-gc")
-                               (:file "simple-persistent-class")
+                               (:file "basic-persistent-class")
                                (:file "persistent-class-in-layer")
                                (:file "layered-persistent-class")
                                (:file "transactional-standard-class")
@@ -38,6 +38,7 @@
                                (:file "standard-persistent-class")
                                (:file "mode")
                                ))))
+
 
 
 

@@ -69,15 +69,15 @@
     :mpush
     :mpop
 
-    :simple-persistent-class
+    :basic-persistent-class
     :layered-persistent-class
     :transactional-standard-class
     :transactional-persistent-class
     :standard-persistent-class
 
-    :define-transactional-class    
-    :define-simple-persistent-class
+    :define-basic-persistent-class
     :define-layered-persistent-class
+    :define-transactional-standard-class    
     :define-transactional-persistent-class
     :define-persistent-class
         
