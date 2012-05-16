@@ -5,27 +5,40 @@
 
 
 (asdf:defsystem :manardb
-  :version "0.1.3"
-  :licence "LLGPL"
-  :depends-on (:alexandria :osicat :iterate :closer-mop :cl-irregsexp)
-  :components ((:module :src
-                 :components ((:file "package")
-                               (:file "widths" :depends-on ("package"))
-                               (:file "utils" :depends-on ("package"))
-                               (:file "mtagmap" :depends-on ("widths" "struct" "mop"))
-                               (:file "mop" :depends-on ("struct"))
-                               (:file "struct" :depends-on ("utils" "widths"))
-                               (:file "class" :depends-on ("mop" "mtagmap"))
-                               (:file "types" :depends-on ("class"))
-                               (:file "array" :depends-on ("types"))
-                               (:file "gc" :depends-on ("finalize"))
-                               (:file "rewrite-gc" :depends-on ("gc"))
-                               (:file "box" :depends-on ("types"))
-                               (:file "mcons" :depends-on ("box"))
-                               (:file "finalize" :depends-on ("box"))
-                               (:file "iterator" :depends-on ("class"))
-                               (:file "fixed-string" :depends-on ("box"))
-                               (:file "transaction" :depends-on ("finalize"))))))
+  :version    "0.2.0"
+  :licence    "LLGPL"
+  :author     "John Fremlin"
+  :author     "Dan Lentz <danlentz@gmail.com>"
+  :maintainer "Dan Lentz <danlentz@gmail.com>"
+  :depends-on (:alexandria :osicat :iterate :closer-mop :contextl :cl-irregsexp)
+  :components ((:module src :serial t
+                 :components ((:static-file "manardb.asd")
+                               (:file "package")
+                               (:file "widths")  
+                               (:file "utils")   
+                               (:file "struct")  
+                               (:file "mop")     
+                               (:file "mtagmap") 
+                               (:file "class")   
+                               (:file "types")   
+                               (:file "iterator")
+                               (:file "array")   
+                               (:file "box")     
+                               (:file "finalize")
+                               (:file "transaction")
+                               (:file "fixed-string") 
+                               (:file "mcons")        
+                               (:file "gc")           
+                               (:file "rewrite-gc")
+                               (:file "simple-persistent-class")
+                               (:file "persistent-class-in-layer")
+                               (:file "layered-persistent-class")
+                               (:file "transactional-standard-class")
+                               (:file "transactional-persistent-class")
+                               (:file "standard-persistent-class")
+                               (:file "mode")
+                               ))))
+
 
 
 
