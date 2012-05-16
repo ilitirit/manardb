@@ -3,33 +3,39 @@
 
 (in-package :cl-user)
 
-
 (defpackage :manardb
   (:nicknames :mm)
-  (:use :closer-common-lisp :iterate
-    :hu.dwim.def
-    :hu.dwim.defclass-star)
+  (:use :closer-common-lisp :contextl :iterate)
+  (:import-from :contextl :layer :layers :process-layered-access-slot-specification)
   (:export
-    :*mtagmaps*
-    :*mmap-base-pathname*
-    :*mmap-may-allocate*
+    :*mmap*
+    :*mtagmaps-may-mmap*
+    :*allocate-base-pathname*
+
+    :lisp-object-to-mptr-impl
+    :lisp-object-to-mptr
+    :mptr-to-lisp-object
     :mptr
     :meq
-    :mm-metaclass
+    
     :mm-object
     :defmmclass
+    :mm-metaclass
+    
+    :gc
+    :rewrite-gc
+
+    :print-all-mmaps
     :close-all-mmaps
     :open-all-mmaps
     :wipe-all-mmaps
-    :print-all-mmaps
+
     :doclass
     :dosubclasses
     :mm-subclasses
-    :retrieve-all-instances
     :count-all-instances
-    :mptr-to-lisp-object
-    :lisp-object-to-mptr
-    :lisp-object-to-mptr-impl
+    :retrieve-all-instances
+
     :marray
     :make-marray
     :marray-ref
@@ -38,19 +44,18 @@
     :list-to-marray
     :index-of-marray
     :in-marray
-    :gc
-    :rewrite-gc
+
     :make-mm-fixed-string
     :mm-fixed-string-value
-    :with-transaction
-    :use-mmap-dir
+
+    :ensure-manardb
     :clean-mmap-dir
     :clear-caches
     :clear-caches-hard    
     :with-object-cache
     :with-cached-slots
-    :direct-slot-numeric-maref    
-    :ensure-manardb
+    :direct-slot-numeric-maref
+    
     :mcons
     :mcar
     :mcdr
@@ -62,6 +67,40 @@
     :mlist
     :as-list
     :mpush
-    :mpop))
+    :mpop
+
+    :simple-persistent-class
+    :layered-persistent-class
+    :transactional-standard-class
+    :transactional-persistent-class
+    :standard-persistent-class
+
+    :define-transactional-class    
+    :define-simple-persistent-class
+    :define-layered-persistent-class
+    :define-transactional-persistent-class
+
+    :define-persistent-class
+        
+    :atomic
+    :call-atomic
+    :roll-back
+    :commit-transaction
+    :retry-transaction
+    :*tries*
+    :*timeout*
+    :*current-transaction*
+    :transaction
+    :most-recent-transaction
+    :transaction-status
+        
+    :stm-mode
+    :direct-update-mode
+    :deferred-update-mode
+    :isolated-update-mode
+    :globally-enable-direct-update-mode
+    :globally-enable-deferred-update-mode
+    :globally-enable-isolated-update-mode))
+
 
 
