@@ -1,4 +1,8 @@
-(in-package #:manardb)
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
+
+(in-package :manardb)
+
 
 (with-constant-tag-for-class (tag mm-box)
   (defun-speedy unbox-box (index)
@@ -8,27 +12,27 @@
 
 (with-constant-tag-for-class (element-tag mm-box) 
   (defun-speedy make-marray (length &key 
-				    (initial-element nil initial-element-p) 
-				    (initial-contents nil initial-contents-p) 
-				    (marray-class 'marray))
+                              (initial-element nil initial-element-p) 
+                              (initial-contents nil initial-contents-p) 
+                              (marray-class 'marray))
     "Create a new marray (memory-mapped array) structure in the datastore, similarly to make-array."
     (let ((marray (make-instance marray-class 
-				 :length length 
-				 :base (make-mptr element-tag
-						  (mtagmap-alloc (mtagmap element-tag) 
-								 (* length #.(stored-type-size 'mptr)))))))
+                    :length length 
+                    :base (make-mptr element-tag
+                            (mtagmap-alloc (mtagmap element-tag) 
+                              (* length #.(stored-type-size 'mptr)))))))
       (symbol-macrolet ()
 	(cond (initial-contents-p
-	       (let ((initial-contents (mapcar #'lisp-object-to-mptr initial-contents))
-		     (ptr (mptr-pointer (marray-base marray))))
-		(loop for i below length 
-		      for n in initial-contents
-		      do (setf (dw ptr i) n))))
-	      (initial-element-p
-	       (let ((initial-element (lisp-object-to-mptr initial-element))
-		     (ptr (mptr-pointer (marray-base marray))))
-		(loop for i below length do
-		      (setf (dw ptr i) initial-element))))))
+                (let ((initial-contents (mapcar #'lisp-object-to-mptr initial-contents))
+                       (ptr (mptr-pointer (marray-base marray))))
+                  (loop for i below length 
+                    for n in initial-contents
+                    do (setf (dw ptr i) n))))
+          (initial-element-p
+            (let ((initial-element (lisp-object-to-mptr initial-element))
+                   (ptr (mptr-pointer (marray-base marray))))
+              (loop for i below length do
+                (setf (dw ptr i) initial-element))))))
       marray)))
 
 (defun box-cons (cons)
@@ -58,20 +62,18 @@
 
 (with-constant-tag-for-class (tag mm-array-as-list)
   (defun unbox-array-as-list (index)
-    (with-pointer-slots (base length)
-	((mpointer tag index) mm-array-as-list)
-       (let ((base base) 
-	      (length length))
-	 (declare (inline elem))
- 	 (flet ((elem (n)
-		  (mptr-to-lisp-object (dw (mptr-pointer base) n))))
-	   (let*
-	       ((cons (cons (elem 0) nil))
-		(tail cons))
-	   (loop for i from 1 below (1- length)
-		 do (setf tail (setf (cdr tail) (cons (elem i) nil)))
-		 finally (setf (cdr tail) (elem (1- length))))
-	     cons))))))
+    (with-pointer-slots (base length) ((mpointer tag index) mm-array-as-list)
+      (let ((base base) 
+             (length length))
+;;        (declare (inline elem))
+        (flet ((elem (n)
+                 (mptr-to-lisp-object (dw (mptr-pointer base) n))))
+          (let* ((cons (cons (elem 0) nil))
+                  (tail cons))
+            (loop for i from 1 below (1- length)
+              do (setf tail (setf (cdr tail) (cons (elem i) nil)))
+              finally (setf (cdr tail) (elem (1- length))))
+            cons))))))
 
 (defmacro prop-for-mm-symbol (sym)
   `(get ,sym 'mm-symbol))
