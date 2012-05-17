@@ -31,12 +31,11 @@
                                (:file "gc")           
                                (:file "rewrite-gc")
                                (:file "basic-persistent-class")
-                               (:file "persistent-class-in-layer")
                                (:file "layered-persistent-class")
-                               (:file "transactional-standard-class")
-                               (:file "transactional-persistent-class")
-                               (:file "standard-persistent-class")
-                               (:file "mode")
+;;                               (:file "transactional-standard-class")
+;;                               (:file "transactional-persistent-class")
+;;                               (:file "standard-persistent-class")
+;;                               (:file "mode")
                                ))))
 
 
