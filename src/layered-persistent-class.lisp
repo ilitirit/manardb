@@ -9,7 +9,7 @@
 
 
 (defclass layered-persistent-access-class (layered-access-class
-                                            basic-persistent-class
+                                            fundamental-persistent-class
                                             standard-class-in-layer)
   ())
 

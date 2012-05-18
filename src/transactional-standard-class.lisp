@@ -9,6 +9,7 @@
 ;; Transactional Access Class
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
 (defclass transactional-access-class ()
   ())
 
