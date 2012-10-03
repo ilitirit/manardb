@@ -212,7 +212,7 @@ efficient implementation possible."
 
 (defun clean-mmap-dir (&optional (dir *mmap-base-pathname*))
   "Unsafely remove all temporary directories from failed transactions
-that were not cleaned up because the transactor crashed. [Not tested or used.] "
+that were not cleaned up because the transactor crashed. Not tested or used."
   (osicat:delete-directory-and-files (merge-pathnames "tmp/" dir)))
 
 

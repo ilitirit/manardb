@@ -5,11 +5,20 @@
 
 
 (asdf:defsystem :manardb
-  :version    "0.2.0"
-  :licence    "LLGPL"
-  :author     "John Fremlin"
-  :author     "Dan Lentz <danlentz@gmail.com>"
-  :maintainer "Dan Lentz <danlentz@gmail.com>"
+  :version          "0.3.0"
+  :description      "ManarDB is a performant Memory-Mapped storage allocation system based on
+                    the common-lisp object system meta-object-protocol"
+  :long-description "This system defines an enhanced fork of the original manardb distribution,
+                     (version designation '0.1.20090911) that provides support for non-linux
+                     platforms, compatibility with current releases of the required libraries,
+                     updates supporting current lisp platform distributions, and a number of
+                     miscellaneous fixes and feature enhancements.  It does not necessarily
+                     seek to maintain backward compatibility with the API provided by the
+                     original distribution in all cases."
+  :licence           "LLGPL"
+  :author            "John Fremlin"
+  :author            "Dan Lentz <danlentz@gmail.com>"
+  :maintainer        "Dan Lentz <danlentz@gmail.com>"
   :depends-on (:alexandria :osicat :iterate :closer-mop :contextl :cl-irregsexp)
   :components ((:module src :serial t
                  :components ((:static-file "manardb.asd")
@@ -30,12 +39,6 @@
                                (:file "mcons")        
                                (:file "gc")           
                                (:file "rewrite-gc")
-                               (:file "fundamental-persistent-class")
-                               (:file "layered-persistent-class")
-                               (:file "transactional-standard-class")
-;;                               (:file "transactional-persistent-class")
-;;                               (:file "standard-persistent-class")
-;;                               (:file "mode")
                                ))))
 
 

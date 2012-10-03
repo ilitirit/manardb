@@ -7,11 +7,10 @@
 (defmacro defun-speedy (name lambda-list &body body &environment env)
   (declare (ignorable env))
   `(progn
-     (declaim (inline ,name)) 
+     #+(or) (declaim (inline ,name)) 
      #+lispworks ,@(when env `((declaim (notinline ,name)))) 
-     ;; Lispworks 5.1 cannot inline things with macrolet lexical scope! 
      (defun ,name ,lambda-list
-       (declare (optimize speed))
+       #+(or) (declare (optimize speed))
        ,@body)))
 
 

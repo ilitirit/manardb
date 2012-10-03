@@ -71,15 +71,11 @@
 
     :fundamental-persistent-class
     :layered-persistent-class
-    :transactional-standard-class
-    :transactional-persistent-class
-    :standard-persistent-class
+    :transactional-class
 
     :define-fundamental-persistent-class
     :define-layered-persistent-class
-    :define-transactional-standard-class    
-    :define-transactional-persistent-class
-    :define-persistent-class
+    :define-transactional-class
         
     :atomic
     :call-atomic

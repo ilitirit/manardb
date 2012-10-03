@@ -29,25 +29,21 @@
 
 
 (with-constant-tag-for-class (element-tag boxed-byte) 
-
-  (defun-speedy make-mm-fixed-string (length &key value)
+  (defun make-mm-fixed-string (length &key value)
     "Create a fixed length string object of size LENGTH; stores into
-it the string in VALUE if given. fixed length string allows string
-objects to be modified in the datastore without allocating more
-space."
+    it the string in VALUE if given. fixed length string allows string
+    objects to be modified in the datastore without allocating more space."
     (let ((mfs (make-instance 'mm-fixed-string 
                  :length length 
                  :base (make-mptr element-tag
                          (mtagmap-alloc (mtagmap element-tag) 
                            (* length #.(stored-type-size '(unsigned-byte 8))))))))
-      (when value
-	(mm-fixed-string-store mfs value))
+      (when value (mm-fixed-string-store mfs value))
       mfs)))
 
 
 (defun mm-fixed-string-store (mfs string)
-  (with-pointer-slots (cropped-length length base)
-      ((mm-object-pointer mfs) mm-fixed-string)
+  (with-pointer-slots (cropped-length length base) ((mm-object-pointer mfs) mm-fixed-string)
     (let ((bv (cl-irregsexp.bytestrings:force-byte-vector string)) (ptr (mptr-pointer base)))
       (setf cropped-length (length bv))
       (loop for x across bv

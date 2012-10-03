@@ -38,16 +38,16 @@
 
 (declaim (ftype (function (mm-object) (mptr)) ptr))
 
-(defun-speedy ptr (object)
+(defun ptr (object)
   (declare (type mm-object object))
   (the mptr (%ptr object)))
 
-
+#+(or)
 (define-compiler-macro ptr (object)
   `(the mptr (%ptr (the mm-object ,object))))
 
 
-(defun-speedy mm-object-pointer (mm-object)
+(defun mm-object-pointer (mm-object)
   (mptr-pointer (ptr mm-object)))
 
 
@@ -62,34 +62,31 @@
 (defun ensure-inherits-from-mm-object (class next-method all-keys)
   (let ((parent (find-class 'mm-object)))
     (labels ((inherits-from (classes)
-               (loop for class in classes
+               (loop
+                 for class in classes
                  thereis (or (subtypep class parent)
                            (inherits-from (class-direct-subclasses class))))))
       (let ((all-keys (copy-list all-keys)))
         (symbol-macrolet ((direct-superclasses (getf all-keys :direct-superclasses)))
-          (setf direct-superclasses
-            (if (inherits-from direct-superclasses)
-              direct-superclasses
-              (cons parent direct-superclasses))))
+          (setf direct-superclasses (if (inherits-from direct-superclasses)
+                                      direct-superclasses
+                                      (cons parent direct-superclasses))))
         (apply next-method class all-keys)))))
 
 
 (deftype mm-slot-definition-reader ()
   `(function (mm-object) t))
 
-
 (deftype mm-slot-definition-writer ()
   `(function (t mm-object) t))
 
 
 (defgeneric slot-definition-memory-mapped (slotd)
-  (:method (slotd)
-    (declare (ignorable slotd))))
+  (:method (slotd) (declare (ignorable slotd))))
 
 
 (defgeneric slot-definition-mmap-pointer-p (slotd)
-  (:method (slotd)
-    (declare (ignorable slotd))))
+  (:method (slotd) (declare (ignorable slotd))))
 
 
 (defclass mm-slot-definition (slot-definition)   
@@ -128,8 +125,8 @@
 
 (defmethod slot-definition-allocation ((slotd mm-slot-definition))
   (if (slot-definition-memory-mapped slotd)
-      'memory
-      (call-next-method)))
+    :memory
+    (call-next-method)))
 
 
 (defmethod direct-slot-definition-class ((class mm-metaclass) &rest initargs)
@@ -137,18 +134,15 @@
   (find-class 'mm-direct-slot-definition))
 
 (defvar *mop-hack-effective-slot-definition-class* nil)
-;; as compute-effective-slot-definition-initargs is not available portably
 
 
 (defmethod effective-slot-definition-class ((class mm-metaclass) &rest initargs)
   (declare (ignore initargs))
-  (or  *mop-hack-effective-slot-definition-class*
-   (call-next-method)))
+  (or *mop-hack-effective-slot-definition-class* (call-next-method)))
 
 
 (defmethod compute-slots :before ((class mm-metaclass))
-  (with-slots (len)
-      class
+  (with-slots (len) class
     (setf len 0)))
 
 
@@ -162,13 +156,12 @@
         (let ((eslot (call-next-method))) 
           (when (slot-definition-memory-mapped eslot)
             (setf (slot-definition-mmap-pointer-p eslot) 
-              (loop for dslot in dslotds
+              (loop
+                for dslot in dslotds
                 always (or (eq 'mptr (slot-definition-type dslot))
                          (eq 'mm-box (slot-definition-mm-type dslot)))))
-
             (let ((type (slot-definition-type eslot)))
-              (with-slots (len)
-                class
+              (with-slots (len) class
                 (setf (slot-value eslot 'offset) len)
                 (incf len (stored-type-size type)))))
           eslot)))))
@@ -177,16 +170,14 @@
 (defmethod slot-value-using-class ((class mm-metaclass) object
                                     (slotd mm-effective-slot-definition))
   (declare (ignorable class))
-  (funcall
-    (the mm-slot-definition-reader (slot-definition-reader-function slotd))
+  (funcall (the mm-slot-definition-reader (slot-definition-reader-function slotd))
     object))
 
 
 (defmethod (setf slot-value-using-class) (new-value (class mm-metaclass) object
                                            (slotd mm-effective-slot-definition))
   (declare (ignorable class))
-  (funcall
-    (the mm-slot-definition-writer (slot-definition-writer-function slotd))
+  (funcall (the mm-slot-definition-writer (slot-definition-writer-function slotd))
     new-value object))
 
 

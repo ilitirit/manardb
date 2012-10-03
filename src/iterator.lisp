@@ -43,11 +43,10 @@
   
 
 (defun mm-subclasses (class)
-  (remove-duplicates
-    (list* class (loop
-                   for c in (class-direct-subclasses class)
-                   when (typep class 'mm-metaclass)
-                   appending (mm-subclasses c)))))
+  (remove-duplicates (list* class (loop
+                                    for c in (class-direct-subclasses class)
+                                    when (typep class 'mm-metaclass)
+                                    appending (mm-subclasses c)))))
 
 
 (defmacro dosubclasses ((var class-specifier &rest options) &body body)
@@ -74,7 +73,5 @@
   (loop
     for     c in (mm-subclasses (force-class class))
     for     m = (mm-metaclass-mtagmap c)
-    summing (if (mtagmap-closed-p m)
-              0
-              (mtagmap-count m))))
+    summing (if (mtagmap-closed-p m) 0 (mtagmap-count m))))
 
