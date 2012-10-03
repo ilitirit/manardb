@@ -12,6 +12,11 @@ miscellaneous fixes and feature enhancements.  It does not necessarily
 seek to maintain backward compatibility with the API provided by the
 original distribution in all cases.
                      
+The primary focus of this branch is to provide a robust storage
+management layer to support implementation of persistence and garbage
+collection for higher-level data-structures -- principally at this
+time focused on [CL-CTRIE](http://github.com/danlentz/cl-ctrie/tree/persistence/). 
+
 
 Testing
 ===
@@ -26,5 +31,5 @@ Credits
 Based on [ManarDB version 0.1.20090911](http://cl-www.msi.co.jp/projects/manardb/index.html)
 by [Mathematical Systems Incorporated](http://www.msi.co.jp).
 
-- Thanks to John Fremlin for a nice platform on which to hack and extend.
+- Thanks to John Fremlin for a nice platform to hack and extend.
 - Thanks to Pascal Costanza for MOP conformance and other advice.
