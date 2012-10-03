@@ -2,7 +2,7 @@ ManarDB
 =======
 
 ManarDB is a performant Memory-Mapped storage allocation system based
-on the common-lisp object system meta-object-protocol
+on the common-lisp object system meta-object-protocol.
 
 This is an enhanced fork of the original manardb distribution,
 (version designation '0.1.20090911) that provides _support for **non-linux**
@@ -12,7 +12,7 @@ miscellaneous fixes and feature enhancements.  It does not necessarily
 seek to maintain backward compatibility with the API provided by the
 original distribution in all cases.
                      
-The primary focus of this branch is to provide a robust storage
+The primary goal of this branch is to provide a robust storage
 management layer to support implementation of persistence and garbage
 collection for higher-level data-structures -- principally at this
 time focused on [CL-CTRIE](http://github.com/danlentz/cl-ctrie/tree/persistence/). 
