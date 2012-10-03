@@ -67,35 +67,7 @@
     :mlist
     :as-list
     :mpush
-    :mpop
-
-    :fundamental-persistent-class
-    :layered-persistent-class
-    :transactional-class
-
-    :define-fundamental-persistent-class
-    :define-layered-persistent-class
-    :define-transactional-class
-        
-    :atomic
-    :call-atomic
-    :roll-back
-    :commit-transaction
-    :retry-transaction
-    :*tries*
-    :*timeout*
-    :*current-transaction*
-    :transaction
-    :most-recent-transaction
-    :transaction-status
-        
-    :stm-mode
-    :direct-update-mode
-    :deferred-update-mode
-    :isolated-update-mode
-    :globally-enable-direct-update-mode
-    :globally-enable-deferred-update-mode
-    :globally-enable-isolated-update-mode))
+    :mpop)
 
 
 
