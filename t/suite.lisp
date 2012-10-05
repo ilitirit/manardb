@@ -2,7 +2,9 @@
 
 (defpackage :manardb-test
   (:export #:test-all-manardb)
-  (:use :cl :manardb :hu.dwim.stefil :iterate))
+  (:use :cl :manardb :hu.dwim.stefil :iterate)
+  (:import-from :manardb :with-transaction))
+  
 
 (in-package :manardb-test)
 
