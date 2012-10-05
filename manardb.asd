@@ -1,29 +1,48 @@
-(cl:in-package #:cl-user)
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
 
-(asdf:defsystem manardb
-  :version "0.1.20090911"
-  :licence "LLGPL"
-  :components
-  ((:module :src
-	    :components (
-			 (:file "package")
-			 (:file "widths" :depends-on ("package"))
-			 (:file "utils" :depends-on ("package"))
-			 (:file "mtagmap" :depends-on ("widths" "struct" "mop"))
-			 (:file "mop" :depends-on ("struct"))
-			 (:file "struct" :depends-on ("utils" "widths"))
-			 (:file "class" :depends-on ("mop" "mtagmap"))
-			 (:file "types" :depends-on ("class"))
-			 (:file "array" :depends-on ("types"))
-			 (:file "gc" :depends-on ("finalize"))
-			 (:file "rewrite-gc" :depends-on ("gc"))
-			 (:file "box" :depends-on ("types"))
-			 (:file "finalize" :depends-on ("box"))
-			 (:file "iterator" :depends-on ("class"))
-			 (:file "fixed-string" :depends-on ("box"))
-			 (:file "transaction" :depends-on ("finalize"))
-			 )))
-  :depends-on (alexandria osicat iterate closer-mop cl-irregsexp))
+(in-package :cl-user)
+
+
+(asdf:defsystem :manardb
+  :version          "0.3.0"
+  :description      "ManarDB is a performant Memory-Mapped storage allocation system based on
+                    the common-lisp object system meta-object-protocol"
+  :long-description "This system defines an enhanced fork of the original manardb distribution,
+                     (version designation '0.1.20090911) that provides support for non-linux
+                     platforms, compatibility with current releases of the required libraries,
+                     updates supporting current lisp platform distributions, and a number of
+                     miscellaneous fixes and feature enhancements.  It does not necessarily
+                     seek to maintain backward compatibility with the API provided by the
+                     original distribution in all cases."
+  :licence           "LLGPL"
+  :author            "John Fremlin"
+  :author            "Dan Lentz <danlentz@gmail.com>"
+  :maintainer        "Dan Lentz <danlentz@gmail.com>"
+  :depends-on (:alexandria :osicat :iterate :closer-mop :contextl :cl-irregsexp)
+  :components ((:module src :serial t
+                 :components ((:static-file "manardb.asd")
+                               (:file "package")
+                               (:file "widths")  
+                               (:file "utils")   
+                               (:file "struct")  
+                               (:file "mop")     
+                               (:file "mtagmap") 
+                               (:file "class")   
+                               (:file "types")   
+                               (:file "iterator")
+                               (:file "array")   
+                               (:file "box")     
+                               (:file "finalize")
+                               (:file "filesystem")
+                               (:file "fixed-string") 
+                               (:file "mcons")        
+                               (:file "gc")           
+                               (:file "rewrite-gc")
+                               ))))
+
+
+
 
 
 

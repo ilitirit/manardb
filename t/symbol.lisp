@@ -1,39 +1,44 @@
-(in-package #:manardb.test)
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
 
-(stefil:in-suite manardb-test)
 
-(stefil:deftest symbol-tag-is-zero-test ()
-  (stefil:is (= (manardb::mm-metaclass-tag (find-class 'manardb::mm-symbol)) 0)))
+(in-package :manardb-test)
 
-(stefil:deftest store-keyword-test ()
+(in-suite manardb-test)
+
+(deftest symbol-tag-is-zero-test ()
+  (is (= (manardb::mm-metaclass-tag (find-class 'manardb::mm-symbol)) 0)))
+
+
+(deftest store-keyword-test ()
   (loop for keyword in '(:keyword :key :errorp)
-	for mptr = (lisp-object-to-mptr keyword)
-	do (stefil:is (eq keyword (mptr-to-lisp-object mptr)))
-	(stefil:is (= mptr (lisp-object-to-mptr keyword)))))
+    for mptr = (lisp-object-to-mptr keyword)
+    do (is (eq keyword (mptr-to-lisp-object mptr)))
+       (is (= mptr (lisp-object-to-mptr keyword)))))
 
-(stefil:deftest store-all-symbols-test (&optional 
-					(packages (list (find-package '#:cl) 
-							(find-package '#:manardb))))
+
+(deftest store-all-symbols-test (&optional (packages (list (find-package :cl)
+                                                       (find-package :manardb))))
   (macrolet ((do-all-syms ((var) &body body)
 	       (alexandria:with-gensyms (package)
 		 `(loop for ,package in packages do
-		       (do-all-symbols (,var ,package)
-			 ,@body)))))
-    (stefil:without-test-progress-printing ;;; too much progress
+                    (do-all-symbols (,var ,package)
+                      ,@body)))))
+    (without-test-progress-printing 
       (let ((table (make-hash-table)))
 	(flet ((add (sym mptr)
 		 (let ((orig (gethash sym table)))
 		   (when orig
-		     (stefil:is (= orig mptr)))
+		     (is (= orig mptr)))
 		   (setf (gethash sym table) mptr))))
-	 (do-all-syms (sym)
-	   (add sym (lisp-object-to-mptr sym)))
-	 (iter (for (sym mptr) in table)
-	       (stefil:is (= mptr (lisp-object-to-mptr sym))))
-	 (do-all-syms (sym)
-	   (stefil:is (eq sym (mptr-to-lisp-object (lisp-object-to-mptr sym)))))
-	 (iter (for (sym mptr) in table)
-	       (stefil:is (eq sym (mptr-to-lisp-object mptr))))
-	 (do-all-syms (sym)
-	   (add sym (lisp-object-to-mptr sym))))))))
+          (do-all-syms (sym)
+            (add sym (lisp-object-to-mptr sym)))
+          (iter (for (sym mptr) :in-hashtable table)
+            (is (= mptr (lisp-object-to-mptr sym))))
+          (do-all-syms (sym)
+            (is (eq sym (mptr-to-lisp-object (lisp-object-to-mptr sym)))))
+          (iter (for (sym mptr) :in-hashtable table)
+            (is (eq sym (mptr-to-lisp-object mptr))))
+          (do-all-syms (sym)
+            (add sym (lisp-object-to-mptr sym))))))))
 

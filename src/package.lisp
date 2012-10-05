@@ -1,49 +1,74 @@
-(cl:defpackage #:manardb
-  (:export 
-   #:mptr
-   #:mm-metaclass
-   #:mm-object
-   #:defmmclass
-   #:*mmap-base-pathname*
-   #:*mmap-may-allocate*
-   #:close-all-mmaps
-   #:open-all-mmaps
-   #:wipe-all-mmaps
-   #:print-all-mmaps
-   #:doclass
-   #:dosubclasses
-   #:retrieve-all-instances
-   #:count-all-instances
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
 
-   #:mptr-to-lisp-object
-   #:lisp-object-to-mptr
-   #:lisp-object-to-mptr-impl
+(in-package :cl-user)
 
-   #:marray
-   #:make-marray
-   #:marray-ref
-   #:marray-length
-   #:index-of-marray
-   #:in-marray
+(defpackage :manardb
+;;  (:nicknames :mm)
+  (:use :closer-common-lisp :contextl :iterate)
+  (:import-from :contextl :layer :layers :process-layered-access-slot-specification)
+  (:export
+    :*mmap*
+    :*mtagmaps-may-mmap*
+    :*allocate-base-pathname*
 
-   #:gc
-   #:rewrite-gc
+    :lisp-object-to-mptr-impl
+    :lisp-object-to-mptr
+    :mptr-to-lisp-object
+    :mptr
+    :meq
+    
+    :mm-object
+    :defmmclass
+    :mm-metaclass
+    
+    :gc
+    :rewrite-gc
 
-   #:make-mm-fixed-string
-   #:mm-fixed-string-value
+    :print-all-mmaps
+    :close-all-mmaps
+    :open-all-mmaps
+    :wipe-all-mmaps
 
-   #:with-transaction
-   #:use-mmap-dir
-   #:clean-mmap-dir
+    :doclass
+    :dosubclasses
+    :mm-subclasses
+    :count-all-instances
+    :retrieve-all-instances
 
-   #:with-object-cache
-   #:with-cached-slots
+    :marray
+    :make-marray
+    :marray-ref
+    :marray-length
+    :marray-to-list
+    :list-to-marray
+    :index-of-marray
+    :in-marray
 
-   #:marray-to-list
-   #:list-to-marray
+    :make-mm-fixed-string
+    :mm-fixed-string-value
 
-   #:meq
-   #:direct-slot-numeric-maref ;; XXXX to delete when we have time for something better
-   )
-;;  #+sbcl (:import-from #:sb-pcl #:reader-function #:writer-function)
-  (:use #:iterate #:closer-common-lisp))
+    :ensure-manardb
+    :use-mmap-dir
+    :clean-mmap-dir
+    :clear-caches
+    :clear-caches-hard    
+    :with-object-cache
+    :with-cached-slots
+    :direct-slot-numeric-maref
+    
+    :mcons
+    :mcar
+    :mcdr
+    :mcadr
+    :mcddr
+    :mconsp
+    :empty
+    :emptyp
+    :mlist
+    :as-list
+    :mpush
+    :mpop))
+
+
+

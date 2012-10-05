@@ -1,11 +1,17 @@
-(asdf:defsystem manardb-test
-  :components
-  ((:module :t
-	    :components ((:file "suite") 
-			 (:file "gc" :depends-on ("tree"))
-			 (:file "class" :depends-on ("suite"))
-			 (:file "symbol" :depends-on ("suite"))
-			 (:file "box" :depends-on ("suite"))
-			 (:file "tree" :depends-on ("suite")))
-	    ))
-  :depends-on (manardb stefil))
+;;;;; -*- mode: common-lisp;   common-lisp-style: modern;    coding: utf-8; -*-
+;;;;;
+
+(in-package :cl-user)
+
+
+(asdf:defsystem :manardb-test
+  :depends-on (:manardb :hu.dwim.stefil)
+  :components ((:module :t
+                 :serial t
+                 :components ((:file "suite")
+                               (:file "tree")
+                               (:file "gc")
+                               (:file "class")
+                               (:file "symbol")
+                               (:file "box")))))
+
