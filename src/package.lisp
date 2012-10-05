@@ -4,7 +4,7 @@
 (in-package :cl-user)
 
 (defpackage :manardb
-  (:nicknames :mm)
+;;  (:nicknames :mm)
   (:use :closer-common-lisp :contextl :iterate)
   (:import-from :contextl :layer :layers :process-layered-access-slot-specification)
   (:export
@@ -49,6 +49,7 @@
     :mm-fixed-string-value
 
     :ensure-manardb
+    :use-mmap-dir
     :clean-mmap-dir
     :clear-caches
     :clear-caches-hard    
@@ -67,7 +68,7 @@
     :mlist
     :as-list
     :mpush
-    :mpop)
+    :mpop))
 
 
 
