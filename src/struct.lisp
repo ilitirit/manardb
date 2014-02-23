@@ -81,6 +81,9 @@ Remains constant across remappings of the memory mapped regions to different off
   (ptr (cffi:null-pointer) :type machine-pointer)
   (len 0 :type mindex)
 
+  #-linux protection
+  #-linux sharing
+
   class
   layout
   instantiator

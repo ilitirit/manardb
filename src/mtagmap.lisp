@@ -136,7 +136,11 @@
 		     (mtagmap-fd mtagmap) fd
 		     (mtagmap-ptr mtagmap) ptr
 		     (mtagmap-len mtagmap) bytes
-		     fd nil ptr nil))
+		     fd nil ptr nil)
+		    #-linux
+		    (setf
+		     (mtagmap-protection mtagmap) protection
+		     (mtagmap-sharing mtagmap) sharing) )
 	       (when ptr 
 		 (osicat-posix:munmap ptr bytes)))))
       (when fd 
@@ -151,7 +155,15 @@
 	     (osicat-posix:ftruncate (mtagmap-fd mtagmap) new-len))
 	   (remap ()
 	     (setf (mtagmap-ptr mtagmap)
+		   #+linux
 		   (osicat-posix:mremap (mtagmap-ptr mtagmap) len new-len osicat-posix:MREMAP-MAYMOVE)
+		   #-linux
+		   (let ((ptr (mtagmap-ptr mtagmap))
+			 (fd (mtagmap-fd mtagmap))
+			 (protection (mtagmap-protection mtagmap))
+			 (sharing (mtagmap-sharing mtagmap)))
+		     (assert (zerop (osicat-posix:munmap ptr len)))
+		     (osicat-posix:mmap (cffi:null-pointer) new-len protection sharing fd 0))
 		   len new-len)))
       (let (done)
 	(unwind-protect
