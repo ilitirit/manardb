@@ -133,14 +133,17 @@ be affected.
        (defun-speedy box-array (object)
 	 (assert (not (cdr (array-dimensions object))))
 	 (declaim (notinline general-box-array))
-	 (etypecase object
-	   (simple-array 
-	    (typecase object
-	      ,@(loop for (class . type) in types
-		      collect `((array ,type) (,(specialized-class-array-boxer-name class) object)))
-	      (t (general-box-array object))))
-	   (array
-	    (general-box-array object)))))))
+	 (handler-case 
+           (etypecase object
+             (simple-array 
+               (typecase object
+                 ,@(loop for (class . type) in types
+                         collect `((array ,type) (,(specialized-class-array-boxer-name class) object)))
+                 (t (general-box-array object))))
+             (array
+               (general-box-array object)))
+           (type-error (err)
+                       (general-box-array object)))))))
 
 
 (defmacro define-box-array (array-boxer-name box-class lisp-type &key convertor (array-class 'mm-array))
